@@ -30,7 +30,7 @@ Start the local server:
 npm start
 ```
 
-Open `http://localhost:4173/`.
+The app will be served at `http://localhost:4174/`.
 
 ## Controls
 
