@@ -1,10 +1,12 @@
 # 4DGS + World Foundation Model Demo
 
-A small web demo that combines streamed [Gracia.ai](https://gracia.ai/) 4DGS performers with a World Foundation Model based 3D Gaussian scene from [World Labs](https://www.worldlabs.ai/).
+A small web demo that combines streamed <a href="https://gracia.ai/" target="_blank" rel="noopener noreferrer">Gracia.ai</a> 4DGS performers with a World Foundation Model based 3D Gaussian scene from <a href="https://www.worldlabs.ai/" target="_blank" rel="noopener noreferrer">World Labs</a>.
 
-The project is intentionally simple: it is a standalone Vite app using [Three.js](https://threejs.org/), [Spark.js](https://sparkjs.dev/), and the Gracia Web SDK runtime files included in `public/dist`.
+The project is intentionally simple: it is a standalone Vite app using <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">Three.js</a>, <a href="https://sparkjs.dev/" target="_blank" rel="noopener noreferrer">Spark.js</a>, and the Gracia Web SDK runtime files included in `public/dist`.
 
 It includes 4DGS relighting controls, spatial audio playback, keyboard/mouse navigation, and mobile joystick controls for supported mobile browsers.
+
+This is a fully navigable 3D scene: 4DGS extends 3D Gaussian Splatting with time-varying volumetric capture, making it possible to render dynamic human performances inside the world.
 
 ![4DGS + World Foundation Model demo screenshot](public/assets/3dgs/4dgs-demo.png)
 
