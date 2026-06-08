@@ -1,3 +1,16 @@
+This repository contains multiple licensed components.
+
+The original demo source code authored for this repository is licensed under
+the MIT License below.
+
+The Gracia Web SDK runtime files in `public/dist/`, including but not limited
+to `GraciaAIO.js` and `GraciaWebCore.js`, are proprietary software owned by
+Gracia Labs. They are not licensed under MIT. They may be included in a public
+copy of this repository only with permission from Gracia Labs, and are governed
+by the Gracia Web SDK proprietary license and any separate agreement between the
+user and Gracia Labs. See `LICENSES/GRACIA-WEB-SDK-LICENSE.md`,
+`LICENSES/GRACIA-PERMISSION.md`, and `THIRD_PARTY_NOTICES.md`.
+
 MIT License
 
 Copyright (c) 2026 Adam Chernick

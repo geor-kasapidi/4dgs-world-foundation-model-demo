@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>4DGS + World Foundation Model</title>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <p class="movement-note">Use WASD and mouse to move around the scene.</p>
+    <div class="hud">
+      <p class="kicker">4DGS + World Foundation Model</p>
+      <h1 id="world-name">Loading</h1>
+      <p id="status">Loading placeholder SOG assets...</p>
+      <div class="keys" aria-hidden="true">
+        <span>←</span>
+        <span>→</span>
+      </div>
+    </div>
+    <div class="gracia-controls">
+      <div class="panel">
+        <div class="dropdown" id="srcDD">
+          <button type="button" class="dd-toggle" id="srcToggle">Source&hellip;</button>
+          <div class="dd-menu" id="srcMenu"></div>
+        </div>
+        <div class="divider"></div>
+        <button type="button" class="btn" id="fileBtn">Open file&hellip;</button>
+        <input type="file" id="fileInput" accept=".mint" hidden />
+        <div class="divider"></div>
+        <span class="lbl">Scene</span>
+        <div class="dropdown" id="sceneDD">
+          <button type="button" class="dd-toggle" id="sceneToggle">Studio</button>
+          <div class="dd-menu" id="sceneMenu"></div>
+        </div>
+        <button type="button" class="btn" id="toggleVSM">VSM</button>
+        <div class="divider"></div>
+        <button type="button" class="btn" id="toggleProbe">Relight</button>
+      </div>
+    </div>
+    <div class="panel dof-panel">
+      <span class="lbl">DoF</span>
+      <button type="button" class="btn on" id="toggleDof">On</button>
+      <label class="range-control">
+        <span>Focus</span>
+        <input type="range" id="dofFocus" min="2" max="18" step="0.1" value="3.3" />
+        <output id="dofFocusValue">3.3</output>
+      </label>
+      <label class="range-control">
+        <span>Aperture</span>
+        <input type="range" id="dofAperture" min="0" max="0.4" step="0.01" value="0.03" />
+        <output id="dofApertureValue">0.03</output>
+      </label>
+    </div>
+    <div class="playback-panel panel" id="barWrap"></div>
+    <div id="mobile-controls" aria-hidden="true">
+      <div class="mobile-stick" id="move-stick" data-stick="move">
+        <div class="mobile-stick-ring"></div>
+        <div class="mobile-stick-knob"></div>
+      </div>
+      <div class="mobile-stick" id="look-stick" data-stick="look">
+        <div class="mobile-stick-ring"></div>
+        <div class="mobile-stick-knob"></div>
+      </div>
+      <div id="mobile-world-buttons">
+        <button type="button" class="mobile-world-btn" id="mobilePrevWorld" aria-label="Previous world">←</button>
+        <button type="button" class="mobile-world-btn" id="mobileNextWorld" aria-label="Next world">→</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

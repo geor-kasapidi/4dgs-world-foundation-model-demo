@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "id": "784c5fd3-810f-43bd-8495-5d2ce08998e2",
+      "label": "Singer",
+      "url": "https://market.gracia.ai/api/v1/streaming/content/784c5fd3-810f-43bd-8495-5d2ce08998e2/",
+      "resetPositionOnStart": true
+    },
+    {
+      "id": "236b8935-af2c-4345-9d51-93ebca7ec168",
+      "label": "Juggler",
+      "url": "https://market.gracia.ai/api/v1/streaming/content/236b8935-af2c-4345-9d51-93ebca7ec168/",
+      "resetPositionOnStart": true
+    },
+    {
+      "id": "70e1cf71-2293-4e5e-a0c2-82247087388f",
+      "label": "Doctor",
+      "url": "https://market.gracia.ai/api/v1/streaming/content/70e1cf71-2293-4e5e-a0c2-82247087388f/",
+      "resetPositionOnStart": true
+    },
+    {
+      "id": "9f83632d-5c70-4213-94be-f851c4868751",
+      "label": "Cycling",
+      "url": "https://market.gracia.ai/api/v1/streaming/content/9f83632d-5c70-4213-94be-f851c4868751/",
+      "resetPositionOnStart": true
+    },
+    {
+      "id": "ff1425ae-9432-45fb-b6d2-97b8138efd34",
+      "label": "Fashion",
+      "url": "https://market.gracia.ai/api/v1/streaming/content/ff1425ae-9432-45fb-b6d2-97b8138efd34/",
+      "resetPositionOnStart": true
+    }
+  ]
+}
