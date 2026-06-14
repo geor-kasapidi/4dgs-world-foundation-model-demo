@@ -10,12 +10,11 @@ the Gracia Web SDK runtime files in this public demo repository.
 
 ## Permission Record
 
-Status: pending written confirmation from Gracia Labs.
+Status: written confirmation received from the Gracia AI founder.
 
-Once permission is received, record the approval date, approver name, and the
-approved scope here before publishing the repository publicly.
+Approval date: June 14, 2026.
 
-Recommended scope to confirm:
+Approved scope:
 
 > Gracia Labs permits this repository to include the listed Gracia Web SDK
 > runtime files for this demo project, while those files remain proprietary

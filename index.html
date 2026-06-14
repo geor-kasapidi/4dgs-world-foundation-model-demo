@@ -12,11 +12,7 @@
     <div class="hud">
       <p class="kicker">4DGS + World Foundation Model</p>
       <h1 id="world-name">Loading</h1>
-      <p id="status">Loading placeholder SOG assets...</p>
-      <div class="keys" aria-hidden="true">
-        <span>←</span>
-        <span>→</span>
-      </div>
+      <p id="status">Loading 3DGS assets...</p>
     </div>
     <div class="gracia-controls">
       <div class="panel">
@@ -48,9 +44,13 @@
       </label>
       <label class="range-control">
         <span>Aperture</span>
-        <input type="range" id="dofAperture" min="0" max="0.4" step="0.01" value="0.03" />
-        <output id="dofApertureValue">0.03</output>
+        <input type="range" id="dofAperture" min="0" max="0.4" step="0.01" value="0.045" />
+        <output id="dofApertureValue">0.045</output>
       </label>
+    </div>
+    <div class="world-switcher panel" aria-label="3DGS scene navigation">
+      <button type="button" class="world-switch-btn" id="prevWorld" aria-label="Previous 3DGS scene">←</button>
+      <button type="button" class="world-switch-btn" id="nextWorld" aria-label="Next 3DGS scene">→</button>
     </div>
     <div class="playback-panel panel" id="barWrap"></div>
     <div id="mobile-controls" aria-hidden="true">

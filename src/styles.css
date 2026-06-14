@@ -52,36 +52,25 @@ h1 {
 
 .movement-note {
   position: fixed;
-  top: 56px;
+  top: 16px;
   left: 50%;
   z-index: 4;
   margin: 0;
   max-width: min(520px, calc(100vw - 32px));
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(18, 18, 22, 0.72);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   color: rgba(246, 241, 232, 0.72);
-  font-size: 0.82rem;
+  font-size: 16px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.1;
+  backdrop-filter: blur(18px) saturate(1.4);
   pointer-events: none;
   text-align: center;
   text-shadow: 0 1px 16px rgba(0, 0, 0, 0.68);
   transform: translateX(-50%);
-}
-
-.keys {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.keys span {
-  display: grid;
-  width: 34px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid rgba(246, 241, 232, 0.32);
-  background: rgba(3, 5, 10, 0.42);
-  color: rgba(246, 241, 232, 0.82);
-  font-size: 1rem;
 }
 
 .gracia-controls {
@@ -255,6 +244,32 @@ h1 {
   width: min(520px, calc(100vw - 32px));
 }
 
+.world-switcher {
+  position: fixed;
+  right: 16px;
+  bottom: 72px;
+  z-index: 4;
+  gap: 8px;
+}
+
+.world-switch-btn {
+  display: grid;
+  width: 51px;
+  height: 51px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  font: 800 31px/1 inherit;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.58);
+}
+
+.world-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 .vb {
   display: flex;
   align-items: center;
@@ -396,15 +411,15 @@ h1 {
 
 .mobile-world-btn {
   display: grid;
-  width: 42px;
-  height: 36px;
+  width: 71px;
+  height: 61px;
   place-items: center;
   border: 1px solid rgba(246, 241, 232, 0.32);
   border-radius: 999px;
   background: rgba(18, 18, 22, 0.68);
   color: rgba(246, 241, 232, 0.92);
   cursor: pointer;
-  font: 800 20px/1 inherit;
+  font: 800 34px/1 inherit;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.58);
   backdrop-filter: blur(12px) saturate(1.2);
 }
@@ -424,6 +439,7 @@ h1 {
   .movement-note,
   .gracia-controls,
   .dof-panel,
+  .world-switcher,
   .hud {
     display: none;
   }

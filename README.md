@@ -36,9 +36,9 @@ The app will be served at `http://localhost:4174/`.
 
 - Drag to orbit the camera.
 - Use `W`, `A`, `S`, and `D` to move through the scene.
-- Use the left and right arrow keys to transition between 3DGS worlds.
+- Use the left and right arrow keys or the on-screen arrows to transition between 3DGS worlds.
 - Use the on-screen controls to switch Gracia sources, lighting presets, and depth-of-field settings.
-- On mobile, use the on-screen joysticks to move and look around.
+- On mobile, use the on-screen joysticks to move and look around, and use the arrow buttons to switch worlds.
 
 ## Notes
 

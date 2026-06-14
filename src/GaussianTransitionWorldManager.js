@@ -18,7 +18,7 @@ export class GaussianTransitionWorldManager {
     this.depthOfField = {
       enabled: true,
       focalDistance: 3.3,
-      apertureSize: 0.03
+      apertureSize: 0.045
     };
 
     this.spark = new SparkRenderer({
@@ -33,7 +33,7 @@ export class GaussianTransitionWorldManager {
     this.scene.add(this.spark);
 
     this.worldDefinitions = [
-      { name: "Bike Shop", url: "assets/3dgs/bike-shop.sog", position: new THREE.Vector3(0, -0.9, 0) },
+      { name: "Bike Shop", url: "assets/3dgs/bike-shop.sog", position: new THREE.Vector3(-0.5, -3.85, 3.3), scale: 2.5 },
       { name: "Theater", url: "assets/3dgs/theater.sog", position: new THREE.Vector3(0, -0.33, 0) }
     ];
   }

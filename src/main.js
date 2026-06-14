@@ -622,12 +622,9 @@ function initDepthOfFieldControls() {
   sync();
 }
 
-function initMobileWorldButtons() {
-  const previous = $("mobilePrevWorld");
-  const next = $("mobileNextWorld");
-  if (!previous || !next) return;
-
+function initWorldButtons() {
   const bind = (button, offset) => {
+    if (!button) return;
     button.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       ensureActivePlayback();
@@ -639,8 +636,10 @@ function initMobileWorldButtons() {
     });
   };
 
-  bind(previous, -1);
-  bind(next, 1);
+  bind($("prevWorld"), -1);
+  bind($("nextWorld"), 1);
+  bind($("mobilePrevWorld"), -1);
+  bind($("mobileNextWorld"), 1);
 }
 
 function mountBar(container) {
@@ -742,7 +741,7 @@ async function start() {
     initDropdown();
     initSceneControls();
     initDepthOfFieldControls();
-    initMobileWorldButtons();
+    initWorldButtons();
     tickBar = mountBar($("barWrap"));
     syncWorldLabel();
     setStatus("Use left and right arrows to transition the 3DGS world.");
