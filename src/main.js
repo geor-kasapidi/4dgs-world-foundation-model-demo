@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GaussianTransitionWorldManager } from "./GaussianTransitionWorldManager.js";
 import { OrbitKeyboardControls } from "./OrbitKeyboardControls.js";
+import { coefficientsForRelight, generateRelightProbeFromScene, loadWorldRelightProbe } from "./RelightingProbes.js";
 import "./styles.css";
 
 const $ = (id) => document.getElementById(id);
@@ -93,6 +94,7 @@ const SOURCE_POSITION_OFFSETS = {
 };
 const sources = [];
 const splatSlots = [];
+const relightCaptureExclusions = [shadowPlane];
 let activeSplatIndex = -1;
 let activeSource = null;
 let sourceTransitionToken = 0;
@@ -104,16 +106,85 @@ let EnvLighting = null;
 let curScene = "studio";
 let useVSM = false;
 let probeOn = false;
+let activeWorldProbe = null;
+let relightProbeRequest = 0;
+let relightMode = "preset";
+const generatedWorldProbes = new Map();
 let dofOn = true;
 let mobilePlaybackUnlockInstalled = false;
 let pendingAudioUnlock = false;
 
 const SCENE_PRESETS = {
-  golden: { label: "Golden", bg: 0x101018, fog: 0x11101a, fogNear: 20, fogFar: 48, amb: 0x75685a, ambI: 0.36, dir: 0xffd08a, dirI: 1.35, dirPos: [-3, 7, -4], exposure: 1.18 },
-  sunset: { label: "Sunset", bg: 0x160b15, fog: 0x23101b, fogNear: 18, fogFar: 44, amb: 0x7d4e72, ambI: 0.34, dir: 0xff794d, dirI: 1.55, dirPos: [5, 4, -2], exposure: 1.05 },
-  cobalt: { label: "Cobalt", bg: 0x06101d, fog: 0x06101d, fogNear: 18, fogFar: 46, amb: 0x406b9a, ambI: 0.44, dir: 0x83b6ff, dirI: 1.1, dirPos: [-2, 8, 3], exposure: 1.2 },
-  studio: { label: "Studio", bg: 0x111214, fog: 0x111214, fogNear: 24, fogFar: 58, amb: 0xc8ced4, ambI: 0.52, dir: 0xffffff, dirI: 1.0, dirPos: [0, 8, -4], exposure: 1.0 },
-  night: { label: "Night", bg: 0x03050a, fog: 0x03050a, fogNear: 14, fogFar: 38, amb: 0x253558, ambI: 0.28, dir: 0x5870b8, dirI: 0.7, dirPos: [-4, 8, -2], exposure: 1.32 }
+  golden: {
+    label: "Golden",
+    bg: 0x101018,
+    fog: 0x11101a,
+    fogNear: 20,
+    fogFar: 48,
+    amb: 0x75685a,
+    ambI: 0.36,
+    dir: 0xffd08a,
+    dirI: 1.35,
+    dirPos: [-3, 7, -4],
+    exposure: 1.18,
+    relight: { ambient: [3.7, 3.45, 3.05], topDown: [0.24, 0.2, 0.12], frontBack: [0.06, 0.04, 0.02] }
+  },
+  sunset: {
+    label: "Sunset",
+    bg: 0x160b15,
+    fog: 0x23101b,
+    fogNear: 18,
+    fogFar: 44,
+    amb: 0x7d4e72,
+    ambI: 0.34,
+    dir: 0xff794d,
+    dirI: 1.55,
+    dirPos: [5, 4, -2],
+    exposure: 1.05,
+    relight: { ambient: [4.08, 3.01, 1.95], topDown: [0.25, 0.12, 0.02], frontBack: [0.15, 0.06, 0], leftRight: [-0.3, -0.12, 0] }
+  },
+  cobalt: {
+    label: "Cobalt",
+    bg: 0x06101d,
+    fog: 0x06101d,
+    fogNear: 18,
+    fogFar: 46,
+    amb: 0x406b9a,
+    ambI: 0.44,
+    dir: 0x83b6ff,
+    dirI: 1.1,
+    dirPos: [-2, 8, 3],
+    exposure: 1.2,
+    relight: { ambient: [3.12, 3.3, 3.72], topDown: [0.1, 0.15, 0.3] }
+  },
+  studio: {
+    label: "Studio",
+    bg: 0x111214,
+    fog: 0x111214,
+    fogNear: 24,
+    fogFar: 58,
+    amb: 0xc8ced4,
+    ambI: 0.52,
+    dir: 0xffffff,
+    dirI: 1.0,
+    dirPos: [0, 8, -4],
+    exposure: 1.0,
+    relight: { ambient: [3.72, 3.37, 2.84], topDown: [0.3, 0.25, 0.15] }
+  },
+  night: {
+    label: "Night",
+    bg: 0x03050a,
+    fog: 0x03050a,
+    fogNear: 14,
+    fogFar: 38,
+    amb: 0x253558,
+    ambI: 0.28,
+    dir: 0x5870b8,
+    dirI: 0.7,
+    dirPos: [-4, 8, -2],
+    exposure: 1.32,
+    relight: { ambient: [2.48, 2.66, 3.01], topDown: [0.08, 0.1, 0.15] }
+  }
 };
 
 async function loadGraciaRuntime() {
@@ -143,8 +214,10 @@ async function transition(offset) {
   const nextIndex = (currentIndex + offset + manager.worldDefinitions.length) % manager.worldDefinitions.length;
   const nextWorld = manager.worldDefinitions[nextIndex];
   setStatus(`Interpolating to ${nextWorld.name}...`);
+  invalidateWorldRelightProbe();
   const sourceTransition = activateSourceForWorld(nextWorld);
   const didTransition = await manager.go(offset);
+  await syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
   await sourceTransition;
   syncWorldLabel();
   setStatus(didTransition ? "Use left and right arrows to transition the 3DGS world." : "Transition skipped.");
@@ -456,6 +529,7 @@ function applyScenePreset(name) {
   const preset = SCENE_PRESETS[name];
   if (!preset) return;
 
+  relightMode = "preset";
   curScene = name;
   scene.background = new THREE.Color(preset.bg);
   scene.fog = new THREE.Fog(preset.fog, preset.fogNear, preset.fogFar);
@@ -466,26 +540,58 @@ function applyScenePreset(name) {
   dir.position.set(...preset.dirPos);
   renderer.toneMappingExposure = preset.exposure;
 
-  $("sceneToggle").textContent = preset.label;
-  for (const item of $("sceneMenu").querySelectorAll(".dd-item")) item.classList.toggle("active", item.dataset.val === name);
+  renderSceneMenu();
   applyRelight();
 }
 
-function buildRelightCoefficients() {
-  const preset = SCENE_PRESETS[curScene];
-  const color = new THREE.Color(preset.amb);
-  const dirColor = new THREE.Color(preset.dir);
-  const coefficients = new Float32Array(27);
-  coefficients[0] = color.r * Math.max(0.15, preset.ambI);
-  coefficients[1] = color.g * Math.max(0.15, preset.ambI);
-  coefficients[2] = color.b * Math.max(0.15, preset.ambI);
-  coefficients[3] = dirColor.r * preset.dirI * 0.18;
-  coefficients[4] = dirColor.g * preset.dirI * 0.18;
-  coefficients[5] = dirColor.b * preset.dirI * 0.18;
-  coefficients[6] = dirColor.r * preset.dirI * 0.1;
-  coefficients[7] = dirColor.g * preset.dirI * 0.1;
-  coefficients[8] = dirColor.b * preset.dirI * 0.1;
-  return coefficients;
+function invalidateWorldRelightProbe() {
+  relightProbeRequest++;
+  activeWorldProbe = null;
+  renderSceneMenu();
+  applyRelight();
+}
+
+async function syncWorldRelightProbe(worldDef) {
+  const request = ++relightProbeRequest;
+  activeWorldProbe = null;
+  renderSceneMenu();
+  applyRelight();
+  try {
+    const cacheKey = generatedWorldProbeKey(worldDef);
+    let probe = generatedWorldProbes.get(cacheKey);
+    if (!probe && worldDef.generateEnvironmentProbe) {
+      probe = await generateRelightProbeFromScene({
+        renderer,
+        scene,
+        worldDef,
+        exclude: [...splatSlots, ...relightCaptureExclusions]
+      });
+      generatedWorldProbes.set(cacheKey, probe);
+    } else if (!probe) {
+      probe = await loadWorldRelightProbe(worldDef, { renderer });
+    }
+    if (request !== relightProbeRequest) return;
+    activeWorldProbe = probe;
+    renderSceneMenu();
+    applyRelight();
+  } catch (error) {
+    if (request !== relightProbeRequest) return;
+    activeWorldProbe = null;
+    renderSceneMenu();
+    console.warn(`Falling back to preset relighting for ${worldDef?.name ?? "world"}:`, error);
+    applyRelight();
+  }
+}
+
+function generatedWorldProbeKey(worldDef) {
+  return [
+    worldDef.url,
+    worldDef.environmentProbeSize ?? 32,
+    worldDef.environmentIntensity ?? 1,
+    worldDef.environmentProbeNear ?? 0.05,
+    worldDef.environmentProbeFar ?? 80,
+    ...(worldDef.environmentProbePosition ?? [0, 0, 0])
+  ].join("|");
 }
 
 function applyRelight() {
@@ -497,8 +603,46 @@ function applyRelight() {
   }
 
   const lightDir = dir.position.clone().normalize();
-  const env = new EnvLighting(buildRelightCoefficients()).prepare(lightDir);
-  for (const mesh of splatSlots) mesh.player?.setEnvLighting(env, 1.0);
+  // World probes extend Gracia relighting without changing the SDK path.
+  const coefficients = coefficientsForRelight({
+    preset: SCENE_PRESETS[curScene],
+    worldProbe: relightMode === "world" ? activeWorldProbe : null
+  });
+  for (const mesh of splatSlots) {
+    if (!mesh.player) continue;
+    mesh.player.clearEnvLighting?.();
+    mesh.player.setEnvLighting(new EnvLighting(coefficients).prepare(lightDir), 1.0);
+  }
+}
+
+function selectWorldRelightProbe() {
+  if (!activeWorldProbe) return;
+  relightMode = "world";
+  renderSceneMenu();
+  applyRelight();
+}
+
+function renderSceneMenu() {
+  const toggle = $("sceneToggle");
+  const menu = $("sceneMenu");
+  if (!toggle || !menu) return;
+
+  menu.replaceChildren();
+  for (const [key, preset] of Object.entries(SCENE_PRESETS)) {
+    const active = relightMode === "preset" && key === curScene;
+    const item = Object.assign(mk("button", `dd-item${active ? " active" : ""}`, menu), { textContent: preset.label });
+    item.dataset.type = "preset";
+    item.dataset.val = key;
+  }
+
+  const worldDef = manager.worldDefinitions[manager.currentWorldIndex];
+  if (activeWorldProbe) {
+    const active = relightMode === "world";
+    const item = Object.assign(mk("button", `dd-item${active ? " active" : ""}`, menu), { textContent: worldDef?.name ?? activeWorldProbe.name });
+    item.dataset.type = "world";
+  }
+
+  toggle.textContent = relightMode === "world" && activeWorldProbe ? worldDef?.name ?? activeWorldProbe.name : SCENE_PRESETS[curScene].label;
 }
 
 function initDropdown() {
@@ -554,10 +698,7 @@ function initSceneControls() {
   const toggle = $("sceneToggle");
   const menu = $("sceneMenu");
 
-  for (const [key, preset] of Object.entries(SCENE_PRESETS)) {
-    const item = Object.assign(mk("button", `dd-item${key === curScene ? " active" : ""}`, menu), { textContent: preset.label });
-    item.dataset.val = key;
-  }
+  renderSceneMenu();
 
   toggle.onclick = () => dd.classList.toggle("open");
   document.addEventListener("click", (event) => {
@@ -567,7 +708,8 @@ function initSceneControls() {
     const item = event.target.closest(".dd-item");
     if (!item) return;
     dd.classList.remove("open");
-    applyScenePreset(item.dataset.val);
+    if (item.dataset.type === "world") selectWorldRelightProbe();
+    else applyScenePreset(item.dataset.val);
   };
 
   $("toggleVSM").onclick = () => {
@@ -745,6 +887,7 @@ async function start() {
     tickBar = mountBar($("barWrap"));
     syncWorldLabel();
     setStatus("Use left and right arrows to transition the 3DGS world.");
+    await syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
 
     if (sources.length) {
       const defaultSource = sourceForWorld(manager.worldDefinitions[manager.currentWorldIndex]) ?? sources.find((source) => source.label === "Cycling") ?? sources[0];

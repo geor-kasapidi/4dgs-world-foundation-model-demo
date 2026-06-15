@@ -32,9 +32,22 @@ export class GaussianTransitionWorldManager {
     this.updateDepthOfField();
     this.scene.add(this.spark);
 
+    // Relighting can use runtime scene probes, supplied environment maps, or static probe JSON.
     this.worldDefinitions = [
-      { name: "Bike Shop", url: "assets/3dgs/bike-shop.sog", position: new THREE.Vector3(-0.5, -3.85, 3.3), scale: 2.5 },
-      { name: "Theater", url: "assets/3dgs/theater.sog", position: new THREE.Vector3(0, -0.33, 0) }
+      {
+        name: "Bike Shop",
+        url: "assets/3dgs/bike-shop.sog",
+        position: new THREE.Vector3(-0.5, -3.85, 3.3),
+        scale: 2.5,
+        generateEnvironmentProbe: true,
+        // environmentMap: "assets/env/bike-shop.hdr"
+      },
+      {
+        name: "Theater",
+        url: "assets/3dgs/theater.sog",
+        position: new THREE.Vector3(0, -0.33, 0),
+        generateEnvironmentProbe: true
+      }
     ];
   }
 
