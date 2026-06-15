@@ -8,7 +8,7 @@ It includes 4DGS relighting controls, spatial audio playback, keyboard/mouse nav
 
 This is a fully navigable 3D scene: 4DGS extends 3D Gaussian Splatting with time-varying volumetric capture, making it possible to render dynamic human performances inside the world.
 
-![4DGS + World Foundation Model demo screenshot](public/assets/3dgs/4dgs-demo.png)
+<img src="public/assets/3dgs/4dgs-demo.png" alt="4DGS + World Foundation Model demo screenshot">
 
 ## Architecture
 
@@ -56,95 +56,58 @@ The app will be served at `http://localhost:4174/`.
 - Production deployments must serve the same cross-origin isolation headers; static hosts that do not allow custom headers may not support Gracia playback.
 - The 3DGS world assets are loaded from `public/assets/3dgs`.
 - Streaming source entries live in `public/sources.json`.
+- The bundled Gracia source entries use the public demo view token from the Gracia AI WebSDK demo setup in `src/main.js`; it is included intentionally and should be replaced when using different streamed 4DGS content.
 
 ## Relighting Extension
 
 The demo keeps Gracia's relighting path intact. The `Relight` toggle still calls Gracia's `EnvLighting` API through each active `GraciaPlayer`.
 
-The extension point is in `src/RelightingProbes.js`. It lets a Spark 3DGS world derive Gracia relighting from a runtime cube capture of the WFM scene, from a provided World Foundation Model environment map, or from precomputed lighting coefficients in a small JSON probe. If a world has none of those, the app falls back to the current hand-authored scene preset lighting.
+The extension point is in `src/RelightingProbes.js`. It lets a Spark 3DGS world derive Gracia relighting from a runtime cube map capture of the World Foundation Model scene. The value proposition is that the WFM-generated world itself becomes the lighting context for the 4DGS performer. If a world does not generate a WFM probe, the app falls back to the current hand-authored scene preset lighting.
 
 ### World Foundation Model Light Probe Generation
 
-The default path is to generate a low-resolution cube map from the loaded WFM/Spark 3DGS world at runtime. Each world can opt in with `generateEnvironmentProbe: true`. When the world loads, the app captures the static 3DGS scene into a small cube render target, hides the dynamic Gracia performer and helper shadow plane during the capture, uses Three.js `LightProbeGenerator` to create 9 RGB spherical harmonics coefficients, flattens them into the 27-value layout expected by Gracia `EnvLighting`, and adds the world name to the lighting dropdown after the probe is ready.
+The relighting path starts from a World Foundation Model generated 3DGS asset, such as a `.sog` scene from World Labs or comparable 3DGS outputs from other WFM systems. Each world can opt in with `generateEnvironmentProbe: true`. When the world loads, the app captures the static WFM/Spark 3DGS scene into a small cube map, hides the dynamic Gracia performer and helper shadow plane during the capture, uses Three.js `LightProbeGenerator` to read the scene's low-frequency lighting, applies the captured average light color plus subtle directional SH to the Gracia-facing probe, and adds the world name to the lighting dropdown after the probe is ready.
+
+```js
+{
+  name: "Bike Shop",
+  url: "assets/3dgs/bike-shop.sog",
+  generateEnvironmentProbe: true
+}
+```
+
+`environmentProbeSize` defaults to `32`, which keeps the cube capture cheap while preserving enough low-frequency lighting information for SH relighting.
+The cube map is captured from `[0, 2, 0]` by default, which places the probe above the scene origin instead of at floor level. Worlds can override this with `environmentProbePosition`.
+The directional SH contribution is intentionally subtle by default. Tune these values per world if the relighting should be more directional, softer, or more conservative:
 
 ```js
 {
   name: "Bike Shop",
   url: "assets/3dgs/bike-shop.sog",
   generateEnvironmentProbe: true,
-  environmentProbeSize: 32
+  environmentProbeSize: 32,
+  environmentProbePosition: [0, 2, 0],
+  environmentProbeDirectionalScale: 0.18,
+  environmentProbeMaxDirectionalRatio: 0.5
 }
 ```
 
-`environmentProbeSize` defaults to `32`, which keeps the cube capture cheap while preserving enough low-frequency lighting information for SH relighting.
+For slower-loading or visually denser WFM assets, `environmentProbeSettleFrames`, `environmentProbeCaptureAttempts`, and `environmentProbeStabilityEpsilon` can also be adjusted to make probe generation wait longer or require tighter coefficient stability before caching.
 
 ### Technical Relighting Implementation
 
-At runtime, the active World Foundation Model 3DGS scene is rendered into a low-resolution `WebGLCubeRenderTarget` with a `CubeCamera`, excluding the dynamic 4DGS performer and helper shadow plane so the captured lighting comes from the world context. Three.js `LightProbeGenerator` converts that cubemap into 9 RGB spherical harmonics coefficients, the app flattens those values into the 27-number layout expected by Gracia `EnvLighting`, and each active `GraciaPlayer` receives the resulting environment lighting when `Relight` is enabled.
-
-You can also attach the WFM contextual environment as an equirectangular image or six-face cubemap. For equirectangular input, the app loads the environment and renders it into a cube target. For cubemap input, it loads the six faces directly. It then follows the same SH-to-Gracia path.
-
-To attach a WFM environment map, add an `environmentMap` URL to a world definition in `src/GaussianTransitionWorldManager.js`:
-
-```js
-{
-  name: "Bike Shop",
-  url: "assets/3dgs/bike-shop.sog",
-  environmentMap: "assets/env/bike-shop.hdr",
-  environmentIntensity: 1
-}
-```
-
-Supported environment inputs are `.hdr`, `.exr`, and standard browser image formats such as `.jpg` or `.png`. HDR/EXR assets are treated as linear environment data; standard images are treated as sRGB. For supplied equirectangular assets, `environmentProbeSize` controls the cube sampling size and defaults to `64`.
-
-For a six-face cubemap, use `environmentCubeMap` in the Three.js cube order:
-
-```js
-{
-  name: "Bike Shop",
-  url: "assets/3dgs/bike-shop.sog",
-  environmentCubeMap: [
-    "assets/env/bike-shop/px.jpg",
-    "assets/env/bike-shop/nx.jpg",
-    "assets/env/bike-shop/py.jpg",
-    "assets/env/bike-shop/ny.jpg",
-    "assets/env/bike-shop/pz.jpg",
-    "assets/env/bike-shop/nz.jpg"
-  ]
-}
-```
-
-This is intended to consume the same World Foundation Model context used by environment-map or ground-projection experiments. In that setup, WFM produces or selects the contextual equirectangular/cubemap environment for the 3DGS world, and this demo converts that environment into Gracia-compatible diffuse relighting for the dynamic 4DGS performer.
-
-### Static Probe Fallback
-
-To attach precomputed coefficients instead, add a `relightProbe` URL to a world definition:
-
-```js
-{
-  name: "Bike Shop",
-  url: "assets/3dgs/bike-shop.sog",
-  relightProbe: "assets/relighting/bike-shop.probe.json"
-}
-```
-
-Probe files contain 27 RGB coefficients, matching the 9 coefficient layout expected by Gracia `EnvLighting`:
-
-```json
-{
-  "name": "Bike Shop",
-  "coefficients": [0.5, 0.5, 0.5]
-}
-```
-
-The example above is shortened for readability. Real probe files must include all 27 values.
+At runtime, the active World Foundation Model 3DGS scene is rendered into a low-resolution `WebGLCubeRenderTarget` with a `CubeCamera`. Probe generation waits a few frames, rejects highly directional raw SH captures, and compares consecutive captures before caching coefficients, which keeps cold-start Spark/WebGL warm-up from producing unstable values. Three.js `LightProbeGenerator` converts the cube map into 9 RGB spherical harmonics coefficients. The app preserves the captured average WFM light color and scales the directional bands with `environmentProbeDirectionalScale` before passing the 27-value coefficient array into Gracia `EnvLighting`, so the 4DGS actor gets contextual side-to-side color variation without the dark-gradient artifact. Each active `GraciaPlayer` receives the resulting environment lighting when `Relight` is enabled.
 
 ## License
 
 This repository is mixed-license:
 
-- Original demo source code is licensed under the [MIT License](LICENSE).
+- Original demo source code is licensed under the <a href="LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>.
 - The Gracia Web SDK runtime files in `public/dist/` are proprietary software owned by Gracia Labs. They may be included publicly only with permission from Gracia Labs and are not covered by the MIT License.
 - Third-party libraries and assets are governed by their own licenses and terms.
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+See <a href="THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">THIRD_PARTY_NOTICES.md</a> for details.
+
+## Contributing
+
+Issues and focused pull requests are welcome as time allows. See <a href="CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">CONTRIBUTING.md</a> for expectations and project scope.

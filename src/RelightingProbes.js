@@ -1,13 +1,15 @@
 import * as THREE from "three";
-import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
-import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
 import { LightProbeGenerator } from "three/addons/lights/LightProbeGenerator.js";
 
 const COEFFICIENT_COUNT = 27;
-const probeCache = new Map();
-const environmentProbeCache = new Map();
-const textureLoader = new THREE.TextureLoader();
-const cubeTextureLoader = new THREE.CubeTextureLoader();
+const DEFAULT_PROBE_POSITION = [0, 2, 0];
+const DEFAULT_SETTLE_FRAMES = 4;
+const DEFAULT_CAPTURE_ATTEMPTS = 4;
+const DEFAULT_STABILITY_EPSILON = 0.01;
+// Keep directional SH subtle by default: enough for contextual color variation,
+// but not enough to reintroduce the dark lobe artifacts seen in bad captures.
+const DEFAULT_DIRECTIONAL_SCALE = 0.18;
+const DEFAULT_MAX_DIRECTIONAL_RATIO = 0.5;
 
 export function buildPresetRelightCoefficients(preset) {
   if (preset.relight) return buildProfileRelightCoefficients(preset.relight);
@@ -38,29 +40,6 @@ function buildProfileRelightCoefficients(profile) {
   return coefficients;
 }
 
-export async function loadWorldRelightProbe(worldDef, { renderer } = {}) {
-  if (worldDef?.generateEnvironmentProbe) return null;
-  if (worldDef?.environmentMap || worldDef?.environmentCubeMap) return loadEnvironmentRelightProbe(worldDef, renderer);
-
-  const url = worldDef?.relightProbe;
-  if (!url) return null;
-  if (probeCache.has(url)) return probeCache.get(url);
-
-  const promise = fetch(url)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Could not load relight probe ${url}`);
-      return response.json();
-    })
-    .then(parseProbe)
-    .catch((error) => {
-      probeCache.delete(url);
-      throw error;
-    });
-
-  probeCache.set(url, promise);
-  return promise;
-}
-
 export function coefficientsForRelight({ preset, worldProbe }) {
   return worldProbe?.coefficients ?? buildPresetRelightCoefficients(preset);
 }
@@ -77,6 +56,11 @@ export async function generateRelightProbeFromScene({
   const intensity = worldDef?.environmentIntensity ?? 1;
   const near = worldDef?.environmentProbeNear ?? 0.05;
   const far = worldDef?.environmentProbeFar ?? 80;
+  const settleFrames = worldDef?.environmentProbeSettleFrames ?? DEFAULT_SETTLE_FRAMES;
+  const maxAttempts = worldDef?.environmentProbeCaptureAttempts ?? DEFAULT_CAPTURE_ATTEMPTS;
+  const stabilityEpsilon = worldDef?.environmentProbeStabilityEpsilon ?? DEFAULT_STABILITY_EPSILON;
+  const directionalScale = worldDef?.environmentProbeDirectionalScale ?? DEFAULT_DIRECTIONAL_SCALE;
+  const maxDirectionalRatio = worldDef?.environmentProbeMaxDirectionalRatio ?? DEFAULT_MAX_DIRECTIONAL_RATIO;
   const cubeTarget = new THREE.WebGLCubeRenderTarget(probeSize, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
@@ -86,9 +70,96 @@ export async function generateRelightProbeFromScene({
     magFilter: THREE.LinearFilter
   });
   const cubeCamera = new THREE.CubeCamera(near, far, cubeTarget);
-  const probePosition = worldDef?.environmentProbePosition ?? [0, 0, 0];
+  const probePosition = worldDef?.environmentProbePosition ?? DEFAULT_PROBE_POSITION;
   cubeCamera.position.fromArray(probePosition);
 
+  try {
+    const coefficients = await captureStableCoefficients({
+      renderer,
+      scene,
+      cubeCamera,
+      cubeTarget,
+      exclude,
+      intensity,
+      directionalScale,
+      maxDirectionalRatio,
+      settleFrames,
+      maxAttempts,
+      stabilityEpsilon,
+      worldName: worldDef?.name ?? "World Foundation Model world"
+    });
+
+    console.log(`Dynamically generated cubemap for 4DGS relighting from ${worldDef?.name ?? "World Foundation Model world"}.`);
+    logGeneratedCoefficients(worldDef, coefficients, { probeSize, probePosition, intensity, directionalScale });
+    console.log(`Generated World Foundation Model light-probe coefficients for 4DGS relighting from ${worldDef?.name ?? "World Foundation Model world"}.`);
+    return {
+      name: `${worldDef?.name ?? "World"} generated probe`,
+      source: "scene-cube-capture",
+      coefficients
+    };
+  } finally {
+    cubeTarget.dispose();
+  }
+}
+
+async function captureStableCoefficients({
+  renderer,
+  scene,
+  cubeCamera,
+  cubeTarget,
+  exclude,
+  intensity,
+  directionalScale,
+  maxDirectionalRatio,
+  settleFrames,
+  maxAttempts,
+  stabilityEpsilon,
+  worldName
+}) {
+  let previous = null;
+  let latest = null;
+  let fallback = null;
+
+  await waitForAnimationFrames(settleFrames);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const raw = await captureCoefficients({ renderer, scene, cubeCamera, cubeTarget, exclude, intensity, directionalScale: 1 });
+    const directionalRatio = coefficientDirectionalRatio(raw);
+    latest = scaleDirectionalCoefficients(raw, directionalScale);
+
+    // Validate raw SH before scaling so unstable cold-start captures cannot pass
+    // just because their directional bands are damped for Gracia.
+    if (directionalRatio > maxDirectionalRatio) {
+      console.warn(
+        `WFM relighting probe capture for ${worldName} had high directional SH ratio ${directionalRatio.toFixed(3)}; retrying before caching coefficients.`
+      );
+      fallback = scaleDirectionalCoefficients(raw, 0);
+      await waitForAnimationFrames(1);
+      continue;
+    }
+
+    if (previous) {
+      const maxDelta = maxCoefficientDelta(previous, latest);
+      if (maxDelta <= stabilityEpsilon) return latest;
+      console.warn(
+        `WFM relighting probe capture for ${worldName} changed by ${maxDelta.toFixed(6)}; retrying before caching coefficients.`
+      );
+    }
+
+    previous = latest;
+    await waitForAnimationFrames(1);
+  }
+
+  if (fallback) {
+    console.warn(`WFM relighting probe capture for ${worldName} stayed too directional; using average-color coefficients.`);
+    return fallback;
+  }
+
+  console.warn(`WFM relighting probe capture for ${worldName} did not fully stabilize; using the latest coefficients.`);
+  return latest;
+}
+
+async function captureCoefficients({ renderer, scene, cubeCamera, cubeTarget, exclude, intensity, directionalScale }) {
   const hidden = [];
   for (const object of exclude) {
     if (!object?.visible) continue;
@@ -102,104 +173,71 @@ export async function generateRelightProbeFromScene({
 
   try {
     cubeCamera.update(renderer, scene);
-    console.log(`Dynamically generated cubemap for 4DGS relighting from ${worldDef?.name ?? "World Foundation Model world"}.`);
     const probe = await LightProbeGenerator.fromCubeRenderTarget(renderer, cubeTarget);
-    const coefficients = flattenLightProbeCoefficients(probe, intensity);
-    console.log(`Generated World Foundation Model light-probe coefficients for 4DGS relighting from ${worldDef?.name ?? "World Foundation Model world"}.`);
-    return {
-      name: `${worldDef?.name ?? "World"} generated probe`,
-      source: "scene-cube-capture",
-      coefficients
-    };
+    return flattenLightProbeCoefficients(probe, { intensity, directionalScale });
   } finally {
     renderer.xr.enabled = previousXrEnabled;
     renderer.setRenderTarget(previousRenderTarget);
     for (const object of hidden) object.visible = true;
-    cubeTarget.dispose();
   }
 }
 
-async function loadEnvironmentRelightProbe(worldDef, renderer) {
-  if (worldDef.environmentMap && !renderer) throw new Error("A renderer is required to generate relighting from an environment map");
-
-  const source = worldDef.environmentMap ?? worldDef.environmentCubeMap;
-  const probeSize = worldDef.environmentProbeSize ?? 64;
-  const intensity = worldDef.environmentIntensity ?? 1;
-  const cacheKey = `${Array.isArray(source) ? source.join(",") : source}|${probeSize}|${intensity}`;
-  if (environmentProbeCache.has(cacheKey)) return environmentProbeCache.get(cacheKey);
-
-  const promise = generateRelightProbeFromEnvironment(worldDef, { renderer, probeSize, intensity })
-    .then((coefficients) => ({
-      name: `${worldDef.name ?? "World"} environment probe`,
-      source,
-      coefficients
-    }))
-    .catch((error) => {
-      environmentProbeCache.delete(cacheKey);
-      throw error;
-    });
-
-  environmentProbeCache.set(cacheKey, promise);
-  return promise;
-}
-
-async function generateRelightProbeFromEnvironment(worldDef, { renderer, probeSize, intensity }) {
-  if (worldDef.environmentCubeMap) return generateRelightProbeFromCubeMap(worldDef.environmentCubeMap, intensity);
-
-  const url = worldDef.environmentMap;
-  const texture = await loadEnvironmentTexture(url);
-  const cubeTarget = new THREE.WebGLCubeRenderTarget(probeSize, {
-    format: THREE.RGBAFormat,
-    type: texture.type,
-    colorSpace: texture.colorSpace
+function waitForAnimationFrames(frameCount) {
+  return new Promise((resolve) => {
+    let remaining = Math.max(0, frameCount);
+    const tick = () => {
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      remaining--;
+      requestAnimationFrame(tick);
+    };
+    tick();
   });
-
-  try {
-    cubeTarget.fromEquirectangularTexture(renderer, texture);
-    const probe = await LightProbeGenerator.fromCubeRenderTarget(renderer, cubeTarget);
-    return flattenLightProbeCoefficients(probe, intensity);
-  } finally {
-    texture.dispose();
-    cubeTarget.dispose();
-  }
 }
 
-async function generateRelightProbeFromCubeMap(urls, intensity) {
-  if (!Array.isArray(urls) || urls.length !== 6) {
-    throw new Error("environmentCubeMap must contain 6 cube-face URLs");
+function maxCoefficientDelta(a, b) {
+  let max = 0;
+  for (let index = 0; index < COEFFICIENT_COUNT; index++) {
+    max = Math.max(max, Math.abs(a[index] - b[index]));
   }
-
-  const cubeTexture = await cubeTextureLoader.loadAsync(urls);
-  cubeTexture.colorSpace = THREE.SRGBColorSpace;
-
-  try {
-    const probe = LightProbeGenerator.fromCubeTexture(cubeTexture);
-    return flattenLightProbeCoefficients(probe, intensity);
-  } finally {
-    cubeTexture.dispose();
-  }
+  return max;
 }
 
-async function loadEnvironmentTexture(url) {
-  const extension = url.split("?")[0].split(".").pop()?.toLowerCase();
-  const loader = extension === "hdr" ? new HDRLoader() : extension === "exr" ? new EXRLoader() : textureLoader;
-  const texture = await loader.loadAsync(url);
-
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-
-  if (extension === "hdr" || extension === "exr") {
-    texture.colorSpace = THREE.LinearSRGBColorSpace;
-  } else {
-    texture.colorSpace = THREE.SRGBColorSpace;
+function coefficientDirectionalRatio(coefficients) {
+  const dc = Math.max(Math.abs(coefficients[0]), Math.abs(coefficients[1]), Math.abs(coefficients[2]), 1e-6);
+  let directional = 0;
+  for (let index = 3; index < COEFFICIENT_COUNT; index++) {
+    directional = Math.max(directional, Math.abs(coefficients[index]));
   }
-
-  return texture;
+  return directional / dc;
 }
 
-function flattenLightProbeCoefficients(probe, intensity = 1) {
+function scaleDirectionalCoefficients(coefficients, directionalScale) {
+  if (directionalScale === 1) return coefficients;
+  const scaled = new Float32Array(coefficients);
+  for (let index = 3; index < COEFFICIENT_COUNT; index++) scaled[index] *= directionalScale;
+  return scaled;
+}
+
+function logGeneratedCoefficients(worldDef, coefficients, { probeSize, probePosition, intensity, directionalScale }) {
+  const values = Array.from(coefficients, (value) => Number(value.toFixed(6)));
+  const maxAbs = values.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
+  const dc = values.slice(0, 3);
+  console.log("WFM SH coefficients for 4DGS relighting", {
+    world: worldDef?.name ?? "World Foundation Model world",
+    probeSize,
+    probePosition,
+    intensity,
+    directionalScale,
+    dc,
+    maxAbs: Number(maxAbs.toFixed(6)),
+    coefficients: values
+  });
+}
+
+function flattenLightProbeCoefficients(probe, { intensity = 1, directionalScale = 1 } = {}) {
   const source = probe?.sh?.coefficients;
   if (!Array.isArray(source) || source.length !== 9) {
     throw new Error("Generated light probe did not contain 9 spherical harmonics coefficients");
@@ -208,21 +246,10 @@ function flattenLightProbeCoefficients(probe, intensity = 1) {
   const coefficients = new Float32Array(COEFFICIENT_COUNT);
   source.forEach((coefficient, index) => {
     const offset = index * 3;
-    coefficients[offset] = coefficient.x * intensity;
-    coefficients[offset + 1] = coefficient.y * intensity;
-    coefficients[offset + 2] = coefficient.z * intensity;
+    const scale = intensity * (index === 0 ? 1 : directionalScale);
+    coefficients[offset] = coefficient.x * scale;
+    coefficients[offset + 1] = coefficient.y * scale;
+    coefficients[offset + 2] = coefficient.z * scale;
   });
   return coefficients;
-}
-
-function parseProbe(data) {
-  const source = Array.isArray(data) ? data : data?.coefficients;
-  if (!Array.isArray(source) || source.length !== COEFFICIENT_COUNT || source.some((value) => !Number.isFinite(value))) {
-    throw new Error(`Relight probe must contain ${COEFFICIENT_COUNT} coefficients`);
-  }
-
-  return {
-    name: data?.name ?? "World relight probe",
-    coefficients: new Float32Array(source)
-  };
 }

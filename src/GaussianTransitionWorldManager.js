@@ -32,15 +32,14 @@ export class GaussianTransitionWorldManager {
     this.updateDepthOfField();
     this.scene.add(this.spark);
 
-    // Relighting can use runtime scene probes, supplied environment maps, or static probe JSON.
+    // WFM relighting captures each generated 3DGS world as a low-resolution cube map.
     this.worldDefinitions = [
       {
         name: "Bike Shop",
         url: "assets/3dgs/bike-shop.sog",
         position: new THREE.Vector3(-0.5, -3.85, 3.3),
-        scale: 2.5,
-        generateEnvironmentProbe: true,
-        // environmentMap: "assets/env/bike-shop.hdr"
+        scale: 2.2,
+        generateEnvironmentProbe: true
       },
       {
         name: "Theater",

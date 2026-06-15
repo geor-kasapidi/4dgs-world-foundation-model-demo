@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GaussianTransitionWorldManager } from "./GaussianTransitionWorldManager.js";
 import { OrbitKeyboardControls } from "./OrbitKeyboardControls.js";
-import { coefficientsForRelight, generateRelightProbeFromScene, loadWorldRelightProbe } from "./RelightingProbes.js";
+import { coefficientsForRelight, generateRelightProbeFromScene } from "./RelightingProbes.js";
 import "./styles.css";
 
 const $ = (id) => document.getElementById(id);
@@ -74,10 +74,15 @@ const clock = new THREE.Clock();
 
 const MARKET = "https://market.gracia.ai";
 const STREAMING_BASE = `${MARKET}/api/v1/streaming/content`;
+// Public demo view token from the Gracia AI WebSDK demo setup. It is included
+// intentionally for the bundled demo source entries; replace it when using
+// different streamed 4DGS content.
 const DEMO_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzMyMjg4OTcsImV4cCI6MTg5NDM2MTY0MH0.U9kEeoph8JFV9zZ9ht7F7NAFpaLRIKRuMyFAYR9xqsw";
 const SPLAT_DEFAULTS = { pos: [0, -2.0, 0], scl: 2.4 };
 const SHADOW_PLANE_Y = -3.2;
 const SOURCE_FADE_MS = 900;
+const RELIGHT_READY_RETRY_LIMIT = 20;
+const DEFAULT_RELIGHT_PROBE_POSITION = [0, 2, 0];
 const WORLD_SOURCE_LABELS = {
   "Bike Shop": "Cycling",
   Theater: "Singer"
@@ -109,6 +114,7 @@ let probeOn = false;
 let activeWorldProbe = null;
 let relightProbeRequest = 0;
 let relightMode = "preset";
+let relightApplyRequest = 0;
 const generatedWorldProbes = new Map();
 let dofOn = true;
 let mobilePlaybackUnlockInstalled = false;
@@ -567,10 +573,14 @@ async function syncWorldRelightProbe(worldDef) {
         exclude: [...splatSlots, ...relightCaptureExclusions]
       });
       generatedWorldProbes.set(cacheKey, probe);
-    } else if (!probe) {
-      probe = await loadWorldRelightProbe(worldDef, { renderer });
     }
     if (request !== relightProbeRequest) return;
+    if (!probe) {
+      activeWorldProbe = null;
+      renderSceneMenu();
+      applyRelight();
+      return;
+    }
     activeWorldProbe = probe;
     renderSceneMenu();
     applyRelight();
@@ -590,15 +600,32 @@ function generatedWorldProbeKey(worldDef) {
     worldDef.environmentIntensity ?? 1,
     worldDef.environmentProbeNear ?? 0.05,
     worldDef.environmentProbeFar ?? 80,
-    ...(worldDef.environmentProbePosition ?? [0, 0, 0])
+    worldDef.environmentProbeSettleFrames ?? 4,
+    worldDef.environmentProbeCaptureAttempts ?? 4,
+    worldDef.environmentProbeStabilityEpsilon ?? 0.01,
+    worldDef.environmentProbeDirectionalScale ?? 0.18,
+    worldDef.environmentProbeMaxDirectionalRatio ?? 0.5,
+    ...(worldDef.environmentProbePosition ?? DEFAULT_RELIGHT_PROBE_POSITION)
   ].join("|");
 }
 
-function applyRelight() {
+function applyRelight(retryCount = 0) {
   const active = activeSplats();
-  if (!active?.player) return;
+  const request = ++relightApplyRequest;
+
   if (!probeOn || !EnvLighting) {
     for (const mesh of splatSlots) mesh.player?.clearEnvLighting?.();
+    return;
+  }
+
+  if (!active?.player) return;
+
+  if (!active.player.isReady) {
+    active.player.clearEnvLighting?.();
+    if (retryCount >= RELIGHT_READY_RETRY_LIMIT) return;
+    window.setTimeout(() => {
+      if (request === relightApplyRequest) applyRelight(retryCount + 1);
+    }, 100);
     return;
   }
 
@@ -608,11 +635,8 @@ function applyRelight() {
     preset: SCENE_PRESETS[curScene],
     worldProbe: relightMode === "world" ? activeWorldProbe : null
   });
-  for (const mesh of splatSlots) {
-    if (!mesh.player) continue;
-    mesh.player.clearEnvLighting?.();
-    mesh.player.setEnvLighting(new EnvLighting(coefficients).prepare(lightDir), 1.0);
-  }
+  active.player.clearEnvLighting?.();
+  active.player.setEnvLighting(new EnvLighting(coefficients).prepare(lightDir), 1.0);
 }
 
 function selectWorldRelightProbe() {
@@ -638,11 +662,12 @@ function renderSceneMenu() {
   const worldDef = manager.worldDefinitions[manager.currentWorldIndex];
   if (activeWorldProbe) {
     const active = relightMode === "world";
-    const item = Object.assign(mk("button", `dd-item${active ? " active" : ""}`, menu), { textContent: worldDef?.name ?? activeWorldProbe.name });
+    const label = `${worldDef?.name ?? activeWorldProbe.name} (WFM)`;
+    const item = Object.assign(mk("button", `dd-item${active ? " active" : ""}`, menu), { textContent: label });
     item.dataset.type = "world";
   }
 
-  toggle.textContent = relightMode === "world" && activeWorldProbe ? worldDef?.name ?? activeWorldProbe.name : SCENE_PRESETS[curScene].label;
+  toggle.textContent = relightMode === "world" && activeWorldProbe ? `${worldDef?.name ?? activeWorldProbe.name} (WFM)` : SCENE_PRESETS[curScene].label;
 }
 
 function initDropdown() {
