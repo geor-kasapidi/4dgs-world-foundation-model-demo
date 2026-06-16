@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { SparkRenderer, SplatMesh, dyno } from "@sparkjsdev/spark";
+import { WORLD_DEFINITIONS } from "./config.js";
 
 export class GaussianTransitionWorldManager {
   constructor(scene, renderer) {
@@ -32,22 +33,7 @@ export class GaussianTransitionWorldManager {
     this.updateDepthOfField();
     this.scene.add(this.spark);
 
-    // WFM relighting captures each generated 3DGS world as a low-resolution cube map.
-    this.worldDefinitions = [
-      {
-        name: "Bike Shop",
-        url: "assets/3dgs/bike-shop.sog",
-        position: new THREE.Vector3(-0.5, -3.85, 3.3),
-        scale: 2.2,
-        generateEnvironmentProbe: true
-      },
-      {
-        name: "Theater",
-        url: "assets/3dgs/theater.sog",
-        position: new THREE.Vector3(0, -0.33, 0),
-        generateEnvironmentProbe: true
-      }
-    ];
+    this.worldDefinitions = WORLD_DEFINITIONS.map((world) => ({ ...world }));
   }
 
   isMobileDevice() {
@@ -201,7 +187,7 @@ export class GaussianTransitionWorldManager {
   applyWorldTransform(mesh, worldDef) {
     if (!mesh) return;
     mesh.rotation.set(Math.PI, 0, 0);
-    mesh.position.copy(worldDef?.position || new THREE.Vector3());
+    mesh.position.fromArray(worldDef?.position ?? [0, 0, 0]);
     mesh.scale.setScalar(worldDef?.scale ?? 5);
     mesh.updateMatrix();
     mesh.updateMatrixWorld(true);

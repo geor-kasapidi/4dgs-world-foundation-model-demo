@@ -1,15 +1,16 @@
 import * as THREE from "three";
 import { LightProbeGenerator } from "three/addons/lights/LightProbeGenerator.js";
+import {
+  DEFAULT_RELIGHT_DIRECTIONAL_SCALE,
+  DEFAULT_RELIGHT_MAX_DIRECTIONAL_RATIO,
+  DEFAULT_RELIGHT_PROBE_CAPTURE_ATTEMPTS,
+  DEFAULT_RELIGHT_PROBE_POSITION,
+  DEFAULT_RELIGHT_PROBE_SETTLE_FRAMES,
+  DEFAULT_RELIGHT_PROBE_SIZE,
+  DEFAULT_RELIGHT_PROBE_STABILITY_EPSILON
+} from "./config.js";
 
 const COEFFICIENT_COUNT = 27;
-const DEFAULT_PROBE_POSITION = [0, 2, 0];
-const DEFAULT_SETTLE_FRAMES = 4;
-const DEFAULT_CAPTURE_ATTEMPTS = 4;
-const DEFAULT_STABILITY_EPSILON = 0.01;
-// Keep directional SH subtle by default: enough for contextual color variation,
-// but not enough to reintroduce the dark lobe artifacts seen in bad captures.
-const DEFAULT_DIRECTIONAL_SCALE = 0.18;
-const DEFAULT_MAX_DIRECTIONAL_RATIO = 0.5;
 
 export function buildPresetRelightCoefficients(preset) {
   if (preset.relight) return buildProfileRelightCoefficients(preset.relight);
@@ -52,15 +53,15 @@ export async function generateRelightProbeFromScene({
 }) {
   if (!renderer || !scene) throw new Error("A renderer and scene are required to generate a relight probe from the scene");
 
-  const probeSize = worldDef?.environmentProbeSize ?? 32;
+  const probeSize = worldDef?.environmentProbeSize ?? DEFAULT_RELIGHT_PROBE_SIZE;
   const intensity = worldDef?.environmentIntensity ?? 1;
   const near = worldDef?.environmentProbeNear ?? 0.05;
   const far = worldDef?.environmentProbeFar ?? 80;
-  const settleFrames = worldDef?.environmentProbeSettleFrames ?? DEFAULT_SETTLE_FRAMES;
-  const maxAttempts = worldDef?.environmentProbeCaptureAttempts ?? DEFAULT_CAPTURE_ATTEMPTS;
-  const stabilityEpsilon = worldDef?.environmentProbeStabilityEpsilon ?? DEFAULT_STABILITY_EPSILON;
-  const directionalScale = worldDef?.environmentProbeDirectionalScale ?? DEFAULT_DIRECTIONAL_SCALE;
-  const maxDirectionalRatio = worldDef?.environmentProbeMaxDirectionalRatio ?? DEFAULT_MAX_DIRECTIONAL_RATIO;
+  const settleFrames = worldDef?.environmentProbeSettleFrames ?? DEFAULT_RELIGHT_PROBE_SETTLE_FRAMES;
+  const maxAttempts = worldDef?.environmentProbeCaptureAttempts ?? DEFAULT_RELIGHT_PROBE_CAPTURE_ATTEMPTS;
+  const stabilityEpsilon = worldDef?.environmentProbeStabilityEpsilon ?? DEFAULT_RELIGHT_PROBE_STABILITY_EPSILON;
+  const directionalScale = worldDef?.environmentProbeDirectionalScale ?? DEFAULT_RELIGHT_DIRECTIONAL_SCALE;
+  const maxDirectionalRatio = worldDef?.environmentProbeMaxDirectionalRatio ?? DEFAULT_RELIGHT_MAX_DIRECTIONAL_RATIO;
   const cubeTarget = new THREE.WebGLCubeRenderTarget(probeSize, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
@@ -70,7 +71,7 @@ export async function generateRelightProbeFromScene({
     magFilter: THREE.LinearFilter
   });
   const cubeCamera = new THREE.CubeCamera(near, far, cubeTarget);
-  const probePosition = worldDef?.environmentProbePosition ?? DEFAULT_PROBE_POSITION;
+  const probePosition = worldDef?.environmentProbePosition ?? DEFAULT_RELIGHT_PROBE_POSITION;
   cubeCamera.position.fromArray(probePosition);
 
   try {

@@ -10,6 +10,12 @@ This is a fully navigable 3D scene: 4DGS extends 3D Gaussian Splatting with time
 
 <img src="public/assets/3dgs/4dgs-demo.png" alt="4DGS + World Foundation Model demo screenshot">
 
+## What This Demonstrates
+
+- Rendering a static World Foundation Model generated 3DGS scene and a streamed Gracia 4DGS performer in one Three.js scene.
+- Dynamically generating a low-resolution WFM cube map at runtime and converting it into Gracia-compatible spherical harmonics relighting.
+- Switching between generated 3DGS worlds while keeping the 4DGS performer, audio, controls, and relighting state coordinated.
+
 ## Architecture
 
 Spark.js owns the static 3DGS world layer. It loads and renders the SOG scenes through `SparkRenderer` and `SplatMesh`.
@@ -17,6 +23,15 @@ Spark.js owns the static 3DGS world layer. It loads and renders the SOG scenes t
 Gracia owns the dynamic 4DGS performer layer. It creates its own `GraciaPlayer`, wraps it in `SplatsMesh`, and that mesh is added to the same Three.js scene.
 
 They are peers in the same scene, not nested inside each other. The app coordinates them: when the active Spark world changes, `transition()` also switches the active Gracia source with `activateSourceForWorld()`.
+
+## Code Organization
+
+- `src/config.js` contains editable demo configuration: WFM worlds, Gracia source mappings, lighting presets, and relighting probe defaults.
+- `src/GaussianTransitionWorldManager.js` owns Spark 3DGS world loading, caching, and transitions.
+- `src/GraciaSources.js` loads and enriches configured Gracia streaming sources.
+- `src/RelightingProbes.js` captures the active WFM scene into a cube map and converts it into spherical harmonics coefficients.
+- `src/RelightingRuntime.js` owns relighting state, probe caching, and application through Gracia `EnvLighting`.
+- `src/main.js` remains the app entry point and orchestration layer for scene setup, UI controls, playback, and the render loop.
 
 ## Getting Started
 
@@ -56,7 +71,13 @@ The app will be served at `http://localhost:4174/`.
 - Production deployments must serve the same cross-origin isolation headers; static hosts that do not allow custom headers may not support Gracia playback.
 - The 3DGS world assets are loaded from `public/assets/3dgs`.
 - Streaming source entries live in `public/sources.json`.
-- The bundled Gracia source entries use the public demo view token from the Gracia AI WebSDK demo setup in `src/main.js`; it is included intentionally and should be replaced when using different streamed 4DGS content.
+- The bundled Gracia source entries use the public demo view token from the Gracia AI WebSDK demo setup in `src/config.js`; it is included intentionally and should be replaced when using different streamed 4DGS content.
+
+## Known Constraints
+
+- This is a focused integration demo, not a general-purpose 3DGS/4DGS editor.
+- Runtime relighting is tuned for low-frequency contextual lighting from WFM scenes; it is not intended to reproduce full global illumination.
+- The Gracia runtime and bundled demo assets have separate licensing and usage terms from the original MIT-licensed demo source.
 
 ## Relighting Extension
 

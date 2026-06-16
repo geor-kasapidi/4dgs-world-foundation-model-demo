@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { GaussianTransitionWorldManager } from "./GaussianTransitionWorldManager.js";
 import { OrbitKeyboardControls } from "./OrbitKeyboardControls.js";
-import { coefficientsForRelight, generateRelightProbeFromScene } from "./RelightingProbes.js";
+import {
+  SCENE_PRESETS,
+  SHADOW_PLANE_Y,
+  SOURCE_POSITION_OFFSETS,
+  SOURCE_SHADOW_Y,
+  SOURCE_YAW_OFFSETS
+} from "./config.js";
+import { loadConfiguredSources, sourceForWorld } from "./GraciaSources.js";
+import { createRelightingRuntime } from "./RelightingRuntime.js";
 import "./styles.css";
 
 const $ = (id) => document.getElementById(id);
@@ -72,31 +80,8 @@ const manager = new GaussianTransitionWorldManager(scene, renderer);
 const controls = new OrbitKeyboardControls(camera, canvas);
 const clock = new THREE.Clock();
 
-const MARKET = "https://market.gracia.ai";
-const STREAMING_BASE = `${MARKET}/api/v1/streaming/content`;
-// Public demo view token from the Gracia AI WebSDK demo setup. It is included
-// intentionally for the bundled demo source entries; replace it when using
-// different streamed 4DGS content.
-const DEMO_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzMyMjg4OTcsImV4cCI6MTg5NDM2MTY0MH0.U9kEeoph8JFV9zZ9ht7F7NAFpaLRIKRuMyFAYR9xqsw";
 const SPLAT_DEFAULTS = { pos: [0, -2.0, 0], scl: 2.4 };
-const SHADOW_PLANE_Y = -3.2;
 const SOURCE_FADE_MS = 900;
-const RELIGHT_READY_RETRY_LIMIT = 20;
-const DEFAULT_RELIGHT_PROBE_POSITION = [0, 2, 0];
-const WORLD_SOURCE_LABELS = {
-  "Bike Shop": "Cycling",
-  Theater: "Singer"
-};
-const SOURCE_SHADOW_Y = {
-  Singer: SHADOW_PLANE_Y - 0.68,
-  Cycling: SHADOW_PLANE_Y - 0.55
-};
-const SOURCE_YAW_OFFSETS = {
-  Singer: (Math.PI * 13) / 18
-};
-const SOURCE_POSITION_OFFSETS = {
-  Singer: new THREE.Vector3(2, 0, -2)
-};
 const sources = [];
 const splatSlots = [];
 const relightCaptureExclusions = [shadowPlane];
@@ -110,88 +95,9 @@ let ModuleFactory = null;
 let EnvLighting = null;
 let curScene = "studio";
 let useVSM = false;
-let probeOn = false;
-let activeWorldProbe = null;
-let relightProbeRequest = 0;
-let relightMode = "preset";
-let relightApplyRequest = 0;
-const generatedWorldProbes = new Map();
 let dofOn = true;
 let mobilePlaybackUnlockInstalled = false;
 let pendingAudioUnlock = false;
-
-const SCENE_PRESETS = {
-  golden: {
-    label: "Golden",
-    bg: 0x101018,
-    fog: 0x11101a,
-    fogNear: 20,
-    fogFar: 48,
-    amb: 0x75685a,
-    ambI: 0.36,
-    dir: 0xffd08a,
-    dirI: 1.35,
-    dirPos: [-3, 7, -4],
-    exposure: 1.18,
-    relight: { ambient: [3.7, 3.45, 3.05], topDown: [0.24, 0.2, 0.12], frontBack: [0.06, 0.04, 0.02] }
-  },
-  sunset: {
-    label: "Sunset",
-    bg: 0x160b15,
-    fog: 0x23101b,
-    fogNear: 18,
-    fogFar: 44,
-    amb: 0x7d4e72,
-    ambI: 0.34,
-    dir: 0xff794d,
-    dirI: 1.55,
-    dirPos: [5, 4, -2],
-    exposure: 1.05,
-    relight: { ambient: [4.08, 3.01, 1.95], topDown: [0.25, 0.12, 0.02], frontBack: [0.15, 0.06, 0], leftRight: [-0.3, -0.12, 0] }
-  },
-  cobalt: {
-    label: "Cobalt",
-    bg: 0x06101d,
-    fog: 0x06101d,
-    fogNear: 18,
-    fogFar: 46,
-    amb: 0x406b9a,
-    ambI: 0.44,
-    dir: 0x83b6ff,
-    dirI: 1.1,
-    dirPos: [-2, 8, 3],
-    exposure: 1.2,
-    relight: { ambient: [3.12, 3.3, 3.72], topDown: [0.1, 0.15, 0.3] }
-  },
-  studio: {
-    label: "Studio",
-    bg: 0x111214,
-    fog: 0x111214,
-    fogNear: 24,
-    fogFar: 58,
-    amb: 0xc8ced4,
-    ambI: 0.52,
-    dir: 0xffffff,
-    dirI: 1.0,
-    dirPos: [0, 8, -4],
-    exposure: 1.0,
-    relight: { ambient: [3.72, 3.37, 2.84], topDown: [0.3, 0.25, 0.15] }
-  },
-  night: {
-    label: "Night",
-    bg: 0x03050a,
-    fog: 0x03050a,
-    fogNear: 14,
-    fogFar: 38,
-    amb: 0x253558,
-    ambI: 0.28,
-    dir: 0x5870b8,
-    dirI: 0.7,
-    dirPos: [-4, 8, -2],
-    exposure: 1.32,
-    relight: { ambient: [2.48, 2.66, 3.01], topDown: [0.08, 0.1, 0.15] }
-  }
-};
 
 async function loadGraciaRuntime() {
   if (SplatsMesh && GraciaPlayer && ModuleFactory) return;
@@ -220,62 +126,17 @@ async function transition(offset) {
   const nextIndex = (currentIndex + offset + manager.worldDefinitions.length) % manager.worldDefinitions.length;
   const nextWorld = manager.worldDefinitions[nextIndex];
   setStatus(`Interpolating to ${nextWorld.name}...`);
-  invalidateWorldRelightProbe();
+  relighting.invalidateWorldRelightProbe();
   const sourceTransition = activateSourceForWorld(nextWorld);
   const didTransition = await manager.go(offset);
-  await syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
+  await relighting.syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
   await sourceTransition;
   syncWorldLabel();
   setStatus(didTransition ? "Use left and right arrows to transition the 3DGS world." : "Transition skipped.");
 }
 
-function withDemoToken(src) {
-  if (!src?.url?.startsWith(STREAMING_BASE)) return src;
-  return { ...src, token: src.token ?? DEMO_TOKEN };
-}
-
-function streamingIdOf(src) {
-  if (src.streamingId) return src.streamingId;
-  if (src.id) return src.id;
-  return src.url?.match(/\/streaming\/content\/([^/]+)/)?.[1] ?? null;
-}
-
-async function enrichStreamingSource(src) {
-  const source = withDemoToken(src);
-  if (!source?.url?.startsWith(STREAMING_BASE)) return source;
-
-  const streamingId = streamingIdOf(source);
-  if (!streamingId) return source;
-
-  try {
-    const res = await fetch(`${STREAMING_BASE}/${streamingId}`, {
-      headers: { "X-VIEW-TOKEN": source.token ?? DEMO_TOKEN }
-    });
-    const { metadata, audioFileLink } = res.ok ? await res.json() : {};
-    return {
-      ...source,
-      id: source.id ?? streamingId,
-      label: source.label ?? metadata?.name ?? streamingId,
-      displayName: source.displayName ?? metadata?.name ?? undefined,
-      audio: source.audio ?? (audioFileLink && metadata?.withAudio !== false ? audioFileLink : undefined),
-      initialTransform: source.initialTransform ?? metadata?.initialSpawn ?? null,
-      locked: source.locked ?? false,
-      resetPositionOnStart: source.resetPositionOnStart ?? true,
-      autoSwitchToNext: source.autoSwitchToNext ?? false
-    };
-  } catch (error) {
-    console.warn(`Failed to load Gracia metadata for ${streamingId}:`, error);
-    return source;
-  }
-}
-
 async function loadSources() {
-  try {
-    const raw = (await (await fetch("./sources.json")).json()).sources ?? [];
-    for (const src of raw) sources.push(await enrichStreamingSource(src));
-  } catch (error) {
-    console.warn("No Gracia sources configured. Use Open file... or add sources.json entries.", error);
-  }
+  sources.push(...(await loadConfiguredSources()));
 
   if (!sources.length) {
     $("srcToggle").textContent = "Open .mint file";
@@ -289,6 +150,18 @@ async function loadSources() {
 function activeSplats() {
   return splatSlots[activeSplatIndex] ?? null;
 }
+
+const relighting = createRelightingRuntime({
+  renderer,
+  scene,
+  splatSlots,
+  captureExclusions: relightCaptureExclusions,
+  getActiveSplats: activeSplats,
+  getCurrentPreset: () => SCENE_PRESETS[curScene],
+  getEnvLighting: () => EnvLighting,
+  getLightDirection: () => dir.position.clone().normalize(),
+  onStateChange: () => renderSceneMenu()
+});
 
 async function createGraciaSplats(visible = false) {
   await loadGraciaRuntime();
@@ -351,7 +224,7 @@ function applyInitialTransform(mesh, src) {
   }
 
   const positionOffset = SOURCE_POSITION_OFFSETS[src.label];
-  if (positionOffset) mesh.position.add(positionOffset);
+  if (positionOffset) mesh.position.add(new THREE.Vector3().fromArray(positionOffset));
 
   mesh.userData.baseScale = mesh.scale.clone();
 }
@@ -444,11 +317,6 @@ function installMobilePlaybackUnlock() {
   window.addEventListener("touchstart", unlock, { passive: true });
 }
 
-function sourceForWorld(worldDef) {
-  const label = WORLD_SOURCE_LABELS[worldDef?.name];
-  return sources.find((source) => source.label === label) ?? null;
-}
-
 function animateSourceFade(incoming, outgoing, token) {
   const start = performance.now();
   setSplatOpacity(incoming, 0);
@@ -515,7 +383,7 @@ async function openSource(src, { fade = true, syncUi = true, autoplay = true } =
   shadowPlane.position.y = shadowYForSource(src);
   shadowPlane.position.z = incoming.position.z;
   if (syncUi) syncSourceDropdown(src);
-  applyRelight();
+  relighting.applyRelight();
 
   if (!fade || !outgoing || outgoing === incoming) {
     setSplatOpacity(incoming, 1);
@@ -527,7 +395,7 @@ async function openSource(src, { fade = true, syncUi = true, autoplay = true } =
 }
 
 function activateSourceForWorld(worldDef) {
-  const source = sourceForWorld(worldDef);
+  const source = sourceForWorld(sources, worldDef);
   return source ? openSource(source, { fade: true, syncUi: true }) : Promise.resolve(false);
 }
 
@@ -535,7 +403,7 @@ function applyScenePreset(name) {
   const preset = SCENE_PRESETS[name];
   if (!preset) return;
 
-  relightMode = "preset";
+  relighting.setPresetMode();
   curScene = name;
   scene.background = new THREE.Color(preset.bg);
   scene.fog = new THREE.Fog(preset.fog, preset.fogNear, preset.fogFar);
@@ -547,103 +415,7 @@ function applyScenePreset(name) {
   renderer.toneMappingExposure = preset.exposure;
 
   renderSceneMenu();
-  applyRelight();
-}
-
-function invalidateWorldRelightProbe() {
-  relightProbeRequest++;
-  activeWorldProbe = null;
-  renderSceneMenu();
-  applyRelight();
-}
-
-async function syncWorldRelightProbe(worldDef) {
-  const request = ++relightProbeRequest;
-  activeWorldProbe = null;
-  renderSceneMenu();
-  applyRelight();
-  try {
-    const cacheKey = generatedWorldProbeKey(worldDef);
-    let probe = generatedWorldProbes.get(cacheKey);
-    if (!probe && worldDef.generateEnvironmentProbe) {
-      probe = await generateRelightProbeFromScene({
-        renderer,
-        scene,
-        worldDef,
-        exclude: [...splatSlots, ...relightCaptureExclusions]
-      });
-      generatedWorldProbes.set(cacheKey, probe);
-    }
-    if (request !== relightProbeRequest) return;
-    if (!probe) {
-      activeWorldProbe = null;
-      renderSceneMenu();
-      applyRelight();
-      return;
-    }
-    activeWorldProbe = probe;
-    renderSceneMenu();
-    applyRelight();
-  } catch (error) {
-    if (request !== relightProbeRequest) return;
-    activeWorldProbe = null;
-    renderSceneMenu();
-    console.warn(`Falling back to preset relighting for ${worldDef?.name ?? "world"}:`, error);
-    applyRelight();
-  }
-}
-
-function generatedWorldProbeKey(worldDef) {
-  return [
-    worldDef.url,
-    worldDef.environmentProbeSize ?? 32,
-    worldDef.environmentIntensity ?? 1,
-    worldDef.environmentProbeNear ?? 0.05,
-    worldDef.environmentProbeFar ?? 80,
-    worldDef.environmentProbeSettleFrames ?? 4,
-    worldDef.environmentProbeCaptureAttempts ?? 4,
-    worldDef.environmentProbeStabilityEpsilon ?? 0.01,
-    worldDef.environmentProbeDirectionalScale ?? 0.18,
-    worldDef.environmentProbeMaxDirectionalRatio ?? 0.5,
-    ...(worldDef.environmentProbePosition ?? DEFAULT_RELIGHT_PROBE_POSITION)
-  ].join("|");
-}
-
-function applyRelight(retryCount = 0) {
-  const active = activeSplats();
-  const request = ++relightApplyRequest;
-
-  if (!probeOn || !EnvLighting) {
-    for (const mesh of splatSlots) mesh.player?.clearEnvLighting?.();
-    return;
-  }
-
-  if (!active?.player) return;
-
-  if (!active.player.isReady) {
-    active.player.clearEnvLighting?.();
-    if (retryCount >= RELIGHT_READY_RETRY_LIMIT) return;
-    window.setTimeout(() => {
-      if (request === relightApplyRequest) applyRelight(retryCount + 1);
-    }, 100);
-    return;
-  }
-
-  const lightDir = dir.position.clone().normalize();
-  // World probes extend Gracia relighting without changing the SDK path.
-  const coefficients = coefficientsForRelight({
-    preset: SCENE_PRESETS[curScene],
-    worldProbe: relightMode === "world" ? activeWorldProbe : null
-  });
-  active.player.clearEnvLighting?.();
-  active.player.setEnvLighting(new EnvLighting(coefficients).prepare(lightDir), 1.0);
-}
-
-function selectWorldRelightProbe() {
-  if (!activeWorldProbe) return;
-  relightMode = "world";
-  renderSceneMenu();
-  applyRelight();
+  relighting.applyRelight();
 }
 
 function renderSceneMenu() {
@@ -651,6 +423,7 @@ function renderSceneMenu() {
   const menu = $("sceneMenu");
   if (!toggle || !menu) return;
 
+  const { activeWorldProbe, relightMode } = relighting.state();
   menu.replaceChildren();
   for (const [key, preset] of Object.entries(SCENE_PRESETS)) {
     const active = relightMode === "preset" && key === curScene;
@@ -733,7 +506,7 @@ function initSceneControls() {
     const item = event.target.closest(".dd-item");
     if (!item) return;
     dd.classList.remove("open");
-    if (item.dataset.type === "world") selectWorldRelightProbe();
+    if (item.dataset.type === "world") relighting.selectWorldRelightProbe();
     else applyScenePreset(item.dataset.val);
   };
 
@@ -748,11 +521,11 @@ function initSceneControls() {
   };
 
   $("toggleProbe").onclick = () => {
-    probeOn = !probeOn;
-    $("toggleProbe").classList.toggle("on", probeOn);
-    applyRelight();
+    const nextProbeOn = !relighting.state().probeOn;
+    $("toggleProbe").classList.toggle("on", nextProbeOn);
+    relighting.setProbeEnabled(nextProbeOn);
   };
-  $("toggleProbe").classList.toggle("on", probeOn);
+  $("toggleProbe").classList.toggle("on", relighting.state().probeOn);
 
   applyScenePreset(curScene);
 }
@@ -912,10 +685,10 @@ async function start() {
     tickBar = mountBar($("barWrap"));
     syncWorldLabel();
     setStatus("Use left and right arrows to transition the 3DGS world.");
-    await syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
+    await relighting.syncWorldRelightProbe(manager.worldDefinitions[manager.currentWorldIndex]);
 
     if (sources.length) {
-      const defaultSource = sourceForWorld(manager.worldDefinitions[manager.currentWorldIndex]) ?? sources.find((source) => source.label === "Cycling") ?? sources[0];
+      const defaultSource = sourceForWorld(sources, manager.worldDefinitions[manager.currentWorldIndex]) ?? sources.find((source) => source.label === "Cycling") ?? sources[0];
       await openSource(defaultSource, { fade: false, syncUi: true, autoplay: !shouldDeferInitialPlayback() });
       installMobilePlaybackUnlock();
     }
