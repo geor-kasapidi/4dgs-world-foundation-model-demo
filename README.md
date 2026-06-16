@@ -33,6 +33,8 @@ They are peers in the same scene, not nested inside each other. The app coordina
 - `src/RelightingRuntime.js` owns relighting state, probe caching, and application through Gracia `EnvLighting`.
 - `src/main.js` remains the app entry point and orchestration layer for scene setup, UI controls, playback, and the render loop.
 
+The demo intentionally uses plain JavaScript to keep the integration easy to inspect, copy, and adapt. Spark ships TypeScript declarations, so teams that prefer TypeScript should be able to migrate the app structure without changing the core Spark/Gracia integration approach.
+
 ## Getting Started
 
 Install dependencies:
