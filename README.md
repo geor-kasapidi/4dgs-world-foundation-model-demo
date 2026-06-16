@@ -78,6 +78,7 @@ The app will be served at `http://localhost:4174/`.
 ## Known Constraints
 
 - This is a focused integration demo, not a general-purpose 3DGS/4DGS editor.
+- The production build may emit a Vite large chunk warning. This is expected because the demo bundles substantial 3D/WebGPU runtime code and does not indicate a failed build.
 - Runtime relighting is tuned for low-frequency contextual lighting from WFM scenes; it is not intended to reproduce full global illumination.
 - The Gracia runtime and bundled demo assets have separate licensing and usage terms from the original MIT-licensed demo source.
 
