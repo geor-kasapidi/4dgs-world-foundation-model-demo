@@ -5,8 +5,7 @@ the Gracia Web SDK runtime files in this public demo repository.
 
 ## Covered Files
 
-- `public/dist/GraciaAIO.js`
-- `public/dist/GraciaWebCore.js`
+- `@gracia/web-sdk` (core bundle and WASM runtime via npm / build output)
 
 ## Permission Record
 

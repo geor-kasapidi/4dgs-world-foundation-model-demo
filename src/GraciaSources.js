@@ -1,4 +1,4 @@
-import { DEMO_TOKEN, STREAMING_BASE, WORLD_SOURCE_LABELS } from "./config.js";
+import { DEMO_TOKEN, STREAMING_BASE } from "./config.js";
 
 export async function loadConfiguredSources() {
   const sources = [];
@@ -7,15 +7,10 @@ export async function loadConfiguredSources() {
     const raw = (await (await fetch("./sources.json")).json()).sources ?? [];
     for (const src of raw) sources.push(await enrichStreamingSource(src));
   } catch (error) {
-    console.warn("No Gracia sources configured. Use Open file... or add sources.json entries.", error);
+    console.warn("No Gracia sources configured. Add entries to public/sources.json.", error);
   }
 
   return sources;
-}
-
-export function sourceForWorld(sources, worldDef) {
-  const label = WORLD_SOURCE_LABELS[worldDef?.name];
-  return sources.find((source) => source.label === label) ?? null;
 }
 
 function withDemoToken(src) {
@@ -48,6 +43,11 @@ async function enrichStreamingSource(src) {
       displayName: source.displayName ?? metadata?.name ?? undefined,
       audio: source.audio ?? (audioFileLink && metadata?.withAudio !== false ? audioFileLink : undefined),
       initialTransform: source.initialTransform ?? metadata?.initialSpawn ?? null,
+      staticTransform: source.staticTransform ?? null,
+      staticUrl: source.staticUrl ?? null,
+      envLighting: source.envLighting ?? null,
+      background: source.background ?? null,
+      controls: source.controls ?? "orbit",
       locked: source.locked ?? false,
       resetPositionOnStart: source.resetPositionOnStart ?? true,
       autoSwitchToNext: source.autoSwitchToNext ?? false

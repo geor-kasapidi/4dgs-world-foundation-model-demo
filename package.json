@@ -1,13 +1,14 @@
 {
   "name": "4dgs-world-foundation-model-demo",
-  "version": "0.1.0",
-  "description": "A simple 4DGS and World Foundation Model integration demo built with Three.js, Spark.js, and the Gracia Web SDK.",
+  "version": "0.2.0",
+  "description": "A 4DGS and World Foundation Model integration demo using the Gracia Web SDK.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
+    "dev": "vite --host localhost --port 4174 --strictPort",
     "start": "vite preview --host localhost --port 4174 --strictPort",
     "build": "vite build"
   },
@@ -15,12 +16,12 @@
     "4dgs",
     "gaussian-splatting",
     "gracia",
-    "sparkjs",
     "threejs",
     "world-labs"
   ],
   "dependencies": {
-    "@sparkjsdev/spark": "^2.0.0",
+    "@gracia/web-sdk": "github:gracia-labs/web-sdk",
+    "gl-matrix": "^3.4.4",
     "three": "^0.180.0"
   },
   "devDependencies": {

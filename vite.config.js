@@ -1,69 +1,41 @@
-import { defineConfig, createLogger } from "vite";
+import { graciaPlugin } from "@gracia/web-sdk/vite-plugin";
+import { defineConfig } from "vite";
 
-const logger = createLogger();
-const originalWarning = logger.warn;
-logger.warn = (message, options) => {
-  if (message.includes("spark") && message.includes("source map")) return;
-  originalWarning(message, options);
-};
+// Gracia core ships optional XR/React imports. For 2D Three.js playback they are
+// never executed; these virtual modules satisfy the bundler without adding deps.
+function graciaOptionalPeers() {
+  const peers = {
+    "@preact/signals-core": `export function signal(v){return{value:v,peek:()=>v,subscribe:()=>()=>{}}}`,
+    "@react-three/uikit":
+      "export function Container(){return null} export function Fullscreen(){return null} export function Svg(){return null} export function Text(){return null}",
+    "@pmndrs/pointer-events": "export function forwardHtmlEvents(){return()=>()=>{}}",
+    "@react-three/fiber": "export function createRoot(){return{render(){},unmount(){}}}",
+    react: "export function useEffect(){} export function useMemo(f){return f()} export function useReducer(_,i){return[i,()=>{}]} export function useRef(i){return{current:i}} export function useState(i){return[i,()=>{}]} export function useCallback(f){return f}",
+    "react/jsx-runtime": "export function jsx(){return null} export function jsxs(){return null}"
+  };
 
-function sparkJsWasmFix() {
   return {
-    name: "spark-js-wasm-fix",
+    name: "gracia-optional-peers",
     enforce: "pre",
-    transform(code, id) {
-      if (!id.includes("spark") || !id.includes("module.js")) return null;
-
-      const wasmPattern = /new URL\s*\(\s*["']data:application\/wasm;base64,([^"']+)["']\s*,\s*import\.meta\.url\s*\)/g;
-      const matches = [...code.matchAll(wasmPattern)];
-      if (matches.length === 0) return null;
-
-      return {
-        code: code.replace(wasmPattern, (_match, base64Data) => {
-          return `(() => {
-            const base64 = "${base64Data}";
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-            return URL.createObjectURL(new Blob([bytes], { type: "application/wasm" }));
-          })()`;
-        }),
-        map: null
-      };
+    resolveId(id) {
+      if (id in peers) return `\0gracia-peer:${id}`;
+    },
+    load(id) {
+      if (!id.startsWith("\0gracia-peer:")) return null;
+      return peers[id.slice("\0gracia-peer:".length)];
     }
   };
 }
 
-const crossOriginIsolationHeaders = {
-  "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Embedder-Policy": "require-corp"
-};
-
 export default defineConfig({
   base: "./",
-  customLogger: logger,
-  plugins: [sparkJsWasmFix()],
-  server: {
-    headers: crossOriginIsolationHeaders
-  },
-  preview: {
-    headers: crossOriginIsolationHeaders
-  },
+  plugins: [graciaOptionalPeers(), ...graciaPlugin({ bundle: "core", dedupe: true })],
   build: {
     outDir: "dist",
     emptyOutDir: true,
     assetsDir: "assets",
     rollupOptions: {
-      input: "index.html",
-      onwarn(warning, warn) {
-        if (warning.code === "MODULE_LEVEL_DIRECTIVE" && warning.message.includes("use asm")) return;
-        if (warning.code === "SOURCEMAP_ERROR" || warning.message?.includes("sourcemap")) return;
-        warn(warning);
-      }
+      input: "index.html"
     }
-  },
-  optimizeDeps: {
-    include: ["three", "@sparkjsdev/spark"],
-    exclude: ["@sparkjsdev/spark"]
   }
 });

@@ -8,27 +8,18 @@ authored for this project.
 
 The Gracia Web SDK is proprietary software owned by Gracia Labs.
 
-The following runtime files may be included in this repository only with
-permission from Gracia Labs. The permission record should be kept in
-`LICENSES/GRACIA-PERMISSION.md` before publishing the repository publicly.
-
-- `public/dist/GraciaAIO.js`
-- `public/dist/GraciaWebCore.js`
-
-These files are not licensed under MIT. They are governed by the Gracia Web SDK
-proprietary license and any separate agreement between the user and Gracia Labs.
+This project consumes `@gracia/web-sdk` from npm (installed from the
+[gracia-labs/web-sdk](https://github.com/gracia-labs/web-sdk) repository).
+This demo uses the **core** entry point (`@gracia/web-sdk/core`), not the AIO
+bundle. The SDK is not licensed under MIT. It is governed by the Gracia Web SDK
+proprietary license.
 
 For licensing inquiries, contact `support@gracia.ai`.
 
 ## Three.js
 
-This project uses [Three.js](https://threejs.org/). Three.js is governed by its
-own open-source license.
-
-## Spark.js
-
-This project uses [Spark.js](https://sparkjs.dev/) through the
-`@sparkjsdev/spark` package. Spark.js is governed by its own package license.
+This project uses [Three.js](https://threejs.org/) as a direct npm dependency
+(`three` in `package.json`).
 
 ## World Labs Assets
 

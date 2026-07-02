@@ -7,12 +7,21 @@
     <title>4DGS + World Foundation Model</title>
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <p class="movement-note">Use WASD and mouse to move around the scene.</p>
+    <div id="canvasWrap"></div>
+    <div id="loader" aria-live="polite" aria-busy="true">
+      <div class="loader-card">
+        <svg class="loader-spinner" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <circle cx="24" cy="24" r="20" stroke="rgba(255,255,255,0.08)" stroke-width="3"></circle>
+          <path d="M44 24a20 20 0 0 0-20-20" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+        </svg>
+        <p id="loaderText">Loading scene…</p>
+      </div>
+    </div>
+    <p class="movement-note">Drag to orbit · Scroll to zoom</p>
     <div class="hud">
       <p class="kicker">4DGS + World Foundation Model</p>
-      <h1 id="world-name">Loading</h1>
-      <p id="status">Loading 3DGS assets...</p>
+      <h1 id="world-name">…</h1>
+      <p id="status"></p>
     </div>
     <div class="gracia-controls">
       <div class="panel">
@@ -21,32 +30,8 @@
           <div class="dd-menu" id="srcMenu"></div>
         </div>
         <div class="divider"></div>
-        <button type="button" class="btn" id="fileBtn">Open file&hellip;</button>
-        <input type="file" id="fileInput" accept=".mint" hidden />
-        <div class="divider"></div>
-        <span class="lbl">Scene</span>
-        <div class="dropdown" id="sceneDD">
-          <button type="button" class="dd-toggle" id="sceneToggle">Studio</button>
-          <div class="dd-menu" id="sceneMenu"></div>
-        </div>
-        <button type="button" class="btn" id="toggleVSM">VSM</button>
-        <div class="divider"></div>
-        <button type="button" class="btn" id="toggleProbe">Relight</button>
+        <button type="button" class="btn on" id="toggleProbe">Relight</button>
       </div>
-    </div>
-    <div class="panel dof-panel">
-      <span class="lbl">DoF</span>
-      <button type="button" class="btn on" id="toggleDof">On</button>
-      <label class="range-control">
-        <span>Focus</span>
-        <input type="range" id="dofFocus" min="2" max="18" step="0.1" value="3.3" />
-        <output id="dofFocusValue">3.3</output>
-      </label>
-      <label class="range-control">
-        <span>Aperture</span>
-        <input type="range" id="dofAperture" min="0" max="0.4" step="0.01" value="0.045" />
-        <output id="dofApertureValue">0.045</output>
-      </label>
     </div>
     <div class="world-switcher panel" aria-label="3DGS scene navigation">
       <button type="button" class="world-switch-btn" id="prevWorld" aria-label="Previous 3DGS scene">←</button>
@@ -54,14 +39,6 @@
     </div>
     <div class="playback-panel panel" id="barWrap"></div>
     <div id="mobile-controls" aria-hidden="true">
-      <div class="mobile-stick" id="move-stick" data-stick="move">
-        <div class="mobile-stick-ring"></div>
-        <div class="mobile-stick-knob"></div>
-      </div>
-      <div class="mobile-stick" id="look-stick" data-stick="look">
-        <div class="mobile-stick-ring"></div>
-        <div class="mobile-stick-knob"></div>
-      </div>
       <div id="mobile-world-buttons">
         <button type="button" class="mobile-world-btn" id="mobilePrevWorld" aria-label="Previous world">←</button>
         <button type="button" class="mobile-world-btn" id="mobileNextWorld" aria-label="Next world">→</button>

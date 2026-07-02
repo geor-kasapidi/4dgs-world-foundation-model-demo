@@ -3,32 +3,105 @@
     {
       "id": "784c5fd3-810f-43bd-8495-5d2ce08998e2",
       "label": "Singer",
+      "displayName": "Singer in Theater",
+      "type": "stream",
       "url": "https://market.gracia.ai/api/v1/streaming/content/784c5fd3-810f-43bd-8495-5d2ce08998e2/",
-      "resetPositionOnStart": true
-    },
-    {
-      "id": "236b8935-af2c-4345-9d51-93ebca7ec168",
-      "label": "Juggler",
-      "url": "https://market.gracia.ai/api/v1/streaming/content/236b8935-af2c-4345-9d51-93ebca7ec168/",
-      "resetPositionOnStart": true
-    },
-    {
-      "id": "70e1cf71-2293-4e5e-a0c2-82247087388f",
-      "label": "Doctor",
-      "url": "https://market.gracia.ai/api/v1/streaming/content/70e1cf71-2293-4e5e-a0c2-82247087388f/",
-      "resetPositionOnStart": true
+      "staticUrl": "assets/3dgs/theater.sog",
+      "background": "#2a2a32",
+      "controls": "orbit",
+      "resetPositionOnStart": true,
+      "initialTransform": {
+        "rotation": {
+          "x": 0.4184793810956313,
+          "y": 0.6309847395195615,
+          "z": 0.5631314803449484,
+          "w": 0.3310833761090331
+        },
+        "scale": {
+          "x": 1.12,
+          "y": 1.12,
+          "z": 1.12
+        },
+        "translation": {
+          "x": -0.0648629080477846,
+          "y": 0.9381430140056561,
+          "z": 0.9379517195354687
+        }
+      },
+      "staticTransform": {
+        "rotation": {
+          "x": -0.6419952890979087,
+          "y": 0.7011905552278573,
+          "z": -0.3094874366456249,
+          "w": 0.019783341321983786
+        },
+        "scale": {
+          "x": 0.8928571428571436,
+          "y": 0.892857142857143,
+          "z": 0.8928571428571427
+        },
+        "translation": {
+          "x": -0.3343275172065013,
+          "y": 0.17907000276089324,
+          "z": 0.2341203962251618
+        }
+      },
+      "envLighting": {
+        "ambient": [3.72, 3.37, 2.84],
+        "topDown": [0.3, 0.25, 0.15]
+      }
     },
     {
       "id": "9f83632d-5c70-4213-94be-f851c4868751",
       "label": "Cycling",
+      "displayName": "Cycling in Bike Shop",
+      "type": "stream",
       "url": "https://market.gracia.ai/api/v1/streaming/content/9f83632d-5c70-4213-94be-f851c4868751/",
-      "resetPositionOnStart": true
-    },
-    {
-      "id": "ff1425ae-9432-45fb-b6d2-97b8138efd34",
-      "label": "Fashion",
-      "url": "https://market.gracia.ai/api/v1/streaming/content/ff1425ae-9432-45fb-b6d2-97b8138efd34/",
-      "resetPositionOnStart": true
+      "staticUrl": "assets/3dgs/bike-shop.sog",
+      "background": "#2a2a32",
+      "controls": "orbit",
+      "resetPositionOnStart": true,
+      "initialTransform": {
+        "rotation": {
+          "x": 0.003400809326736663,
+          "y": 0.9392331451999579,
+          "z": 0.027213218395613536,
+          "w": 0.3421826620363319
+        },
+        "scale": {
+          "x": 2.23,
+          "y": 2.23,
+          "z": 2.23
+        },
+        "translation": {
+          "x": -0.11006476691453515,
+          "y": 1.3279718753630796,
+          "z": 1.5851890389228915
+        }
+      },
+      "staticTransform": {
+        "rotation": {
+          "x": 0.9363266899224761,
+          "y": 0.005581646207178808,
+          "z": -0.34939937904470153,
+          "w": -0.03436930152933176
+        },
+        "scale": {
+          "x": 0.4484304932735412,
+          "y": 0.4484304932735406,
+          "z": 0.4484304932735416
+        },
+        "translation": {
+          "x": 0.4040938769449807,
+          "y": -0.6332034933266932,
+          "z": 0.5460082911578207
+        }
+      },
+      "envLighting": {
+        "ambient": [3.7, 3.45, 3.05],
+        "topDown": [0.24, 0.2, 0.12],
+        "frontBack": [0.06, 0.04, 0.02]
+      }
     }
   ]
 }
