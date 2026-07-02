@@ -71,7 +71,11 @@ Each entry in `public/sources.json` follows the Gracia combined source format:
   "background": "#2a2a32",
   "controls": "orbit",
   "initialTransform": { "rotation": {}, "scale": {}, "translation": {} },
-  "staticTransform": { "rotation": {}, "scale": {}, "translation": {} }
+  "staticTransform": { "rotation": {}, "scale": {}, "translation": {} },
+  "envLighting": {
+    "ambient": [3.72, 3.37, 2.84],
+    "topDown": [0.3, 0.25, 0.15]
+  }
 }
 ```
 

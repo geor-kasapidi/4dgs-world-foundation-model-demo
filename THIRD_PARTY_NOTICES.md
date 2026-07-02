@@ -16,10 +16,11 @@ proprietary license.
 
 For licensing inquiries, contact `support@gracia.ai`.
 
-## Three.js
+## Three.js and gl-matrix
 
-This project uses [Three.js](https://threejs.org/) as a direct npm dependency
-(`three` in `package.json`).
+The Gracia Web SDK depends on [Three.js](https://threejs.org/) and
+[gl-matrix](https://glmatrix.net/) as peer dependencies. This demo lists them
+in `package.json` so Vite can resolve SDK imports at build time.
 
 ## World Labs Assets
 

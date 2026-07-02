@@ -180,14 +180,6 @@ h1 {
   white-space: nowrap;
 }
 
-.lbl {
-  color: rgba(255, 255, 255, 0.45);
-  font: 600 9px/1 inherit;
-  letter-spacing: 0.1em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-  text-transform: uppercase;
-}
-
 .dd-toggle {
   position: relative;
   min-width: 104px;
@@ -265,41 +257,6 @@ h1 {
   margin: 0 2px;
   background: rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
-}
-
-.dof-panel {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 4;
-  gap: 9px;
-}
-
-.range-control {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.range-control span {
-  color: rgba(255, 255, 255, 0.52);
-  font: 600 10px/1 inherit;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.range-control input {
-  width: 82px;
-  accent-color: rgba(255, 255, 255, 0.78);
-  cursor: pointer;
-}
-
-.range-control output {
-  min-width: 30px;
-  color: rgba(255, 255, 255, 0.72);
-  font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  text-align: right;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .playback-panel {
@@ -406,72 +363,14 @@ h1 {
   z-index: 3;
   display: none;
   pointer-events: none;
-  --mobile-stick-size: clamp(118px, 27vw, 152px);
-  --mobile-stick-bottom: max(76px, calc(env(safe-area-inset-bottom) + 72px));
-}
-
-.mobile-stick {
-  position: absolute;
-  width: var(--mobile-stick-size);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-#move-stick {
-  left: max(14px, env(safe-area-inset-left));
-  bottom: var(--mobile-stick-bottom);
-}
-
-#look-stick {
-  right: max(14px, env(safe-area-inset-right));
-  bottom: var(--mobile-stick-bottom);
-}
-
-.mobile-stick-ring,
-.mobile-stick-knob {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.mobile-stick-ring {
-  inset: 0;
-  border: 1px solid rgba(246, 241, 232, 0.34);
-  background:
-    radial-gradient(circle, rgba(246, 241, 232, 0.1), rgba(246, 241, 232, 0.035) 58%, rgba(3, 5, 10, 0.32)),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 12px);
-  box-shadow: 0 0 18px rgba(0, 0, 0, 0.32), inset 0 0 20px rgba(246, 241, 232, 0.08);
-  backdrop-filter: blur(12px) saturate(1.2);
-}
-
-.mobile-stick-knob {
-  top: 50%;
-  left: 50%;
-  width: 42%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(246, 241, 232, 0.7);
-  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.82), rgba(246, 241, 232, 0.38) 42%, rgba(38, 42, 48, 0.46));
-  box-shadow: 0 1px 14px rgba(0, 0, 0, 0.34);
-  transform: translate(-50%, -50%);
-}
-
-.mobile-stick.active .mobile-stick-ring {
-  border-color: rgba(246, 241, 232, 0.72);
-  box-shadow: 0 0 20px rgba(246, 241, 232, 0.18), inset 0 0 24px rgba(246, 241, 232, 0.13);
 }
 
 #mobile-world-buttons {
-  position: absolute;
+  position: fixed;
   right: max(14px, env(safe-area-inset-right));
-  bottom: calc(var(--mobile-stick-bottom) + var(--mobile-stick-size) + 12px);
+  bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px));
   display: flex;
   gap: 10px;
-  width: var(--mobile-stick-size);
-  justify-content: center;
   pointer-events: auto;
 }
 
@@ -496,56 +395,10 @@ h1 {
 }
 
 @media (max-width: 720px) {
-  body {
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
   .movement-note,
   .gracia-controls,
-  .dof-panel,
   .world-switcher,
   .hud {
-    display: none;
-  }
-
-  .panel {
-    width: 100%;
-    min-width: 0;
-    padding: 7px 8px;
-    gap: 6px;
-    border-radius: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-
-  .btn,
-  .dd-toggle {
-    font-size: 10px;
-  }
-
-  .gracia-controls .dropdown {
-    flex: 1 1 140px;
-    min-width: 0;
-  }
-
-  .gracia-controls .dd-toggle {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .gracia-controls .dd-menu {
-    right: 0;
-    max-width: calc(100vw - 36px);
-  }
-
-  .gracia-controls .dd-item {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .divider {
     display: none;
   }
 
@@ -574,17 +427,5 @@ h1 {
 
   #mobile-controls {
     display: block;
-  }
-}
-
-@media (max-width: 520px) {
-  #mobile-controls {
-    --mobile-stick-size: clamp(96px, 29vw, 126px);
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }

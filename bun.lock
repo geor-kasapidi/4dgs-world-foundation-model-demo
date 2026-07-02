@@ -21,7 +21,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@gracia/web-sdk": ["@gracia/web-sdk@github:gracia-labs/web-sdk#abdeb25", { "dependencies": { "howler": "^2.2.4" }, "peerDependencies": { "@pmndrs/pointer-events": ">=6.0.0", "@preact/signals-core": "^1.14.3", "@react-three/fiber": ">=9.0.0", "@react-three/uikit": ">=1.0.0", "gl-matrix": "^3.4.4", "react": ">=18.0.0", "three": ">=0.150.0" }, "optionalPeers": ["@pmndrs/pointer-events", "@preact/signals-core", "@react-three/fiber", "@react-three/uikit", "gl-matrix", "react", "three"] }, "gracia-labs-web-sdk-abdeb25", "sha512-qYLYLdk78SCeXXUlMigRJvvdY+4Fm13W9729rUp0iNUTwxxrs4Q1bzSBWfKFNZSSeTgfUlza3ZtqbjVNsCRL8g=="],
+    "@gracia/web-sdk": ["@gracia/web-sdk@git+ssh://git@github.com/gracia-labs/web-sdk.git#abdeb25fec457cd090dcd14cd0ada3cb5fe8fa98", { "dependencies": { "howler": "^2.2.4" }, "peerDependencies": { "@pmndrs/pointer-events": ">=6.0.0", "@preact/signals-core": "^1.14.3", "@react-three/fiber": ">=9.0.0", "@react-three/uikit": ">=1.0.0", "gl-matrix": "^3.4.4", "react": ">=18.0.0", "three": ">=0.150.0" }, "optionalPeers": ["@pmndrs/pointer-events", "@preact/signals-core", "@react-three/fiber", "@react-three/uikit", "react"] }, "abdeb25fec457cd090dcd14cd0ada3cb5fe8fa98"],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 
